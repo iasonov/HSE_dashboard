@@ -1,43 +1,3 @@
-# def read_bitrix_excel(file_location, sheetname):
-#     import pandas as pd
-#     import openpyxl as op
-#     wb=op.load_workbook(file_location)
-#     # Connecting to the specified worksheet
-#     ws = wb[sheetname]
-#     # Initliasing an empty list where the excel tables will be imported
-#     # into
-#     var_tables = []
-#     # Importing table details from excel: Table_Name and Sheet_Range
-#     for table in ws._tables:
-#         sht_range = ws[table.ref]
-#         data_rows = []
-#         i = 0
-#         j = 0
-#         for row in sht_range:
-#             j += 1
-#             data_cols = []
-#             for cell in row:
-#                 i += 1
-#                 data_cols.append(cell.value)
-#                 if (i == len(row)) & (j == 1):
-#                     data_cols.append('Bitrix')
-#                 elif i == len(row):
-#                     data_cols.append(table.name)
-#             data_rows.append(data_cols)
-#             i = 0
-#         var_tables.append(data_rows)
-
-#     # Creating an empty list where all the ifs will be appended
-#     # into
-#     var_df = []
-#     # Appending each table extracted from excel into the list
-#     for tb in var_tables:
-#         df = pd.DataFrame(tb[1:], columns=tb[0])
-#         var_df.append(df)
-#     # Merging all in one big df
-#     df = pd.concat(var_df,axis=1) # This merges on columns
-#     return df
-
 import pandas as pd
 
 def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have "values" column
@@ -46,6 +6,7 @@ def insert_values(df_dashboard, df_values, col_join, col_values): # df_values sh
     return df_dashboard[col_values]
 
 def process_excel_files():
+    import numpy as np
 
     # папки и файлы для загрузки
     relative_folder = "data/"
@@ -72,13 +33,14 @@ def process_excel_files():
 
     bachelor_col_programs = "Конкурсная группа"
     bachelor_col_programs_names = "Образовательная программа"
-    # bachelor_col_contracts = ""
+    # bachelor_col_contracts = "Образовательная программа"
     bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
-    bachelor__col_enrollments = "Конкурс"
+    bachelor_col_enrollments = "Конкурс"
 
     main_studyonline = "Общий лендинг"
 
     template_file = "template.xlsx"
+
 
     # основные параметры
     col_program = 'program'
@@ -100,6 +62,10 @@ def process_excel_files():
     col_conversion_contracts_to_payments = """Конверсия договор -> оплата"""
     col_conversion_contracts_to_enrollments = """Конверсия договор -> зачисление"""
     col_payments_div_plan = """Выполнение плана %"""
+    col_income_1year     = "Выручка за 1 год, млн.руб."
+    col_income_all       = "Выручка за весь период обучения"
+    col_income_1year_hse = "Выручка за 1 год после отчислений партнерам"
+    col_income_all_hse   = "Выручка за весь период обучения после отчислений партнерам"
 
 
     # считывание файлов
@@ -149,11 +115,12 @@ def process_excel_files():
 
     try:
         leads = df_bitrix.groupby('Образовательная программа')['Образовательная программа'].count()
-        leads = leads * 20 #only for test! REMOVE LATER
+        # leads = leads * 20 #only for test! REMOVE LATER
         leads = pd.DataFrame({'program_bitrix':leads.index, 'values':leads.values})
     except:
         leads = pd.DataFrame(columns=['program_bitrix', 'values'])
-    df_master_dashboard[col_leads] = insert_values(df_master_dashboard, leads, 'program_bitrix', col_leads)
+    df_master_dashboard[col_leads]   = insert_values(df_master_dashboard,   leads, 'program_bitrix', col_leads)
+    df_bachelor_dashboard[col_leads] = insert_values(df_bachelor_dashboard, leads, 'program_bitrix', col_leads)
     main_leads = leads.loc[leads['program_bitrix'] == main_studyonline, 'values'].values[0]
 
     # АСАВ
@@ -184,6 +151,7 @@ def process_excel_files():
 
 
 
+
     # АИС ПК
     try:
         print("Начинаем считывать данные от АИС ПК")
@@ -192,6 +160,14 @@ def process_excel_files():
         df_bachelor_enr = pd.read_excel(relative_folder + bachelor_enr_file, usecols="E:H") #, sheet_name=master_file_sheet_name, skiprows=1)
         print("Данные от АИС ПК считаны")
 
+        bachelor_dict = {
+    'Глобальные цифровые коммуникации (онлайн)'                        :'Глобальные цифровые коммуникации - онлайн (О К)'        ,
+    'Глобальные цифровые коммуникации (онлайн)'                        :'Глобальные цифровые коммуникации (Медиа) - онлайн (О К)',
+    'Компьютерные науки и анализ данных (онлайн)'                      :'Компьютерные науки и анализ данных - онлайн (О К)'      ,
+    'Экономический анализ (онлайн)'                                    :'Экономический анализ - онлайн (О К)'                    ,
+    'Дизайн  (онлайн)'                                                 :'Дизайн - онлайн (О К)'                                  ,
+    'Программные системы и автоматизация процессов разработки (онлайн)':'Программные системы и автоматизация процессов разработки - онлайн (О К)'
+        }
     except:
         print("Ошибка в обработке АИС ПК, возможно нет выгрузки из АИС ПК или она называется не:\n" + bachelor_app_file)
         print(bachelor_con_file)
@@ -203,53 +179,40 @@ def process_excel_files():
     bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
     df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
 
-    bachelor_contracts = df_bachelor[df_bachelor[bachelor_col_contracts].notna()].groupby(bachelor_col_programs)[bachelor_col_programs].count()
+    bachelor_contracts = df_bachelor_con.groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+    bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
     bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
     df_bachelor_dashboard[col_contracts] = insert_values(df_bachelor_dashboard, bachelor_contracts, col_program, col_contracts)
 
-    bachelor_payments = df_bachelor[df_bachelor[bachelor_col_payments] == "Оплачено"].groupby(bachelor_col_programs)[bachelor_col_programs].count()
+    bachelor_payments = df_bachelor_con[(df_bachelor_con[bachelor_col_payments] == "Оплачен")|(df_bachelor_con[bachelor_col_payments] == "Оплачен по квитанциям")].groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+    bachelor_payments = bachelor_payments.rename(index=bachelor_dict)
     bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
     df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
 
-    bachelor_enrollments = df_bachelor[df_bachelor[bachelor_col_enrollments].notna()].groupby(bachelor_col_programs)[bachelor_col_programs].count()
+    bachelor_enrollments = df_bachelor_enr.groupby(bachelor_col_enrollments)[bachelor_col_enrollments].count()
     bachelor_enrollments = pd.DataFrame({col_program:bachelor_enrollments.index, 'values':bachelor_enrollments.values})
     df_bachelor_dashboard[col_enrollments] = insert_values(df_bachelor_dashboard, bachelor_enrollments, col_program, col_enrollments)
 
 
-
-    # считаем второстепенные столбцы
-    df_master_dashboard[col_leads_total]                            = df_master_dashboard[col_leads_partners] + df_master_dashboard[col_leads]
-    df_master_dashboard[col_conversion_leads_to_contracts]          = df_master_dashboard[col_contracts] / df_master_dashboard[col_leads_total]
-    df_master_dashboard[col_needed_applications]                    = round(df_master_dashboard[col_plan]/ NEEDED_APPLICATIONS_RATIO)
-    df_master_dashboard[col_conversion_applications_to_contracts]   = df_master_dashboard[col_contracts] / df_master_dashboard[col_applications]
-    df_master_dashboard[col_conversion_contracts_to_payments]       = df_master_dashboard[col_payments]  / df_master_dashboard[col_contracts]
-    df_master_dashboard[col_conversion_contracts_to_enrollments]    = df_master_dashboard[col_payments]  / df_master_dashboard[col_contracts]
-    df_master_dashboard[col_payments_div_plan]                      = df_master_dashboard[col_payments]  / df_master_dashboard[col_plan]
-
-    # try:
-    #     df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file)
-    # except:
-    #     print("Нет выгрузки заявлений из АИС ПК или она называется не " + bachelor_app_file)
-    #     df_bachelor_app = pd.DataFrame()
-
-    # try:
-    #     df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file)
-    # except:
-    #     print("Нет выгрузки договоров из АИС ПК или она называется не " + bachelor_con_file)
-    #     df_bachelor_con = pd.DataFrame()
-
-    # try:
-    #     df_bachelor_enr = pd.read_excel(relative_folder + bachelor_enr_file)
-    # except:
-    #     print("Нет выгрузки зачислений из АИС ПК или она называется не " + bachelor_enr_file)
-    #     df_bachelor_enr = pd.DataFrame()
-
-    # df_master_dashboard[col_applications] =
-    # print(df_master.info())
-    # print(df_master.groupby(master_col_programs)[master_col_programs].count()) #.reset_index())
-
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
     df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads}
-    df = pd.concat([df_main_dashboard, df_master_dashboard], ignore_index=True, sort=False) #df_bachelor_dashboard,
+    df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False).drop(columns=['program_bitrix'])
+
+
+    # считаем второстепенные столбцы
+    df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
+    df[col_conversion_leads_to_contracts]          = df[col_contracts] / df[col_leads_total]
+    df[col_needed_applications]              = round(df[col_plan]/ NEEDED_APPLICATIONS_RATIO)
+    df[col_conversion_applications_to_contracts]   = df[col_contracts] / df[col_applications]
+    df[col_conversion_contracts_to_payments]       = df[col_payments]  / df[col_contracts]
+    df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
+    df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan]
+    df[col_income_1year     ] = df['price'] * df[col_payments] / 1000
+    # df[col_income_all       ] = df['price'] * df[col_payments] * (2 if df['level'] == 'master' else 4)
+    # df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
+    # df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
+
+    df.replace(np.inf, 0, inplace=True)
+    df.fillna(0, inplace=True)
 
     return df

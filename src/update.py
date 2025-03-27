@@ -22,7 +22,13 @@ def update_sheet(aggregated_data):
     # worksheet.clear()
 
     # Update the worksheet with the aggregated data
+    # try:
+    # sheet_instance.set_dataframe(aggregated_data, 'A1')
     sheet_instance.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
+    #     #sheet_instance.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
+    #     print("Google Spreadsheet updated successfully.")
+    # except:
+    #     aggregated_data.to_excel("dashboard.xlsx")
+    #     print("Error update")
 
-    print("Google Spreadsheet updated successfully.")
     return
