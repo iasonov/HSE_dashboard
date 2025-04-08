@@ -2,3 +2,5 @@
 .venv/
 .ipynb_checkpoints/
 *.json
+data/
+__pycache__/

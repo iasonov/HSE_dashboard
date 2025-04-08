@@ -10,6 +10,7 @@ def process_excel_files():
 
     # папки и файлы для загрузки
     relative_folder = "data/"
+    templates_folder = "templates/"
 
     programs_file = "programs.xlsx"
 
@@ -73,7 +74,7 @@ def process_excel_files():
     try:
         # cчитываем базу данных програм
         print("Начинаем считывать базу программ")
-        df_online_programs = pd.read_excel(relative_folder + programs_file)
+        df_online_programs = pd.read_excel(templates_folder + programs_file)
         df_online_programs = df_online_programs[df_online_programs['format'] != 'offline'].reset_index(drop=True)
         #df_online_programs[['plan_rus', 'plan_foreign']] = df_online_programs[['plan_rus', 'plan_foreign']].astype(int)
         df_online_master_programs = df_online_programs[df_online_programs['level'] == 'master'].drop(columns=["format"]).sort_values(by=col_program).reset_index(drop=True)
@@ -87,13 +88,13 @@ def process_excel_files():
     try:# Шаблон дашборда / template
         print("Начинаем считывать шаблон дашборда")
         # создаем дашборд по магистратурам добавляя туда программы из базы
-        df_master_dashboard = pd.read_excel(relative_folder + template_file)
+        df_master_dashboard = pd.read_excel(templates_folder + template_file)
         df_master_dashboard = pd.concat([df_online_master_programs, df_master_dashboard])
         df_master_dashboard['program_bitrix'] = df_master_dashboard['program_bitrix'].fillna("")
         df_master_dashboard = df_master_dashboard.fillna(0)
         df_master_dashboard[['plan_rus', 'plan_foreign']] = df_master_dashboard[['plan_rus', 'plan_foreign']].astype(int)
 
-        df_bachelor_dashboard = pd.read_excel(relative_folder + template_file)
+        df_bachelor_dashboard = pd.read_excel(templates_folder + template_file)
         df_bachelor_dashboard = pd.concat([df_online_bachelor_programs, df_bachelor_dashboard])
         df_bachelor_dashboard['program_bitrix'] = df_bachelor_dashboard['program_bitrix'].fillna("")
         df_bachelor_dashboard = df_bachelor_dashboard.fillna(0)
@@ -207,7 +208,7 @@ def process_excel_files():
     df[col_conversion_contracts_to_payments]       = df[col_payments]  / df[col_contracts]
     df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
     df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan]
-    df[col_income_1year     ] = df['price'] * df[col_payments] / 1000
+    df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
     # df[col_income_all       ] = df['price'] * df[col_payments] * (2 if df['level'] == 'master' else 4)
     # df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
     # df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
