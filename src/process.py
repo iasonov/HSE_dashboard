@@ -1,8 +1,16 @@
 import pandas as pd
+from col_names import *
 
 def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have "values" column
-    df_dashboard.loc[df_dashboard[col_join].isin(df_values[col_join]), col_values] = df_values.loc[df_values[col_join].isin(df_dashboard[col_join]), 'values'].values
-    df_dashboard[col_values] = df_dashboard[col_values].fillna(0).astype(int)
+    for i, row in df_dashboard.iterrows():
+        if row[col_join] in df_values[col_join].values:
+            df_dashboard.loc[i, col_values] = df_values[df_values[col_join] == row[col_join]].values[0][1] # row[col_values]
+            #row[col_values] = df_values[(row[col_join], 'values')]
+        else:
+            df_dashboard.loc[i, col_values] = 0
+        # print(row)
+    # df_dashboard.loc[df_dashboard[col_join].isin(df_values[col_join]), col_values] = df_values.loc[df_values[col_join].isin(df_dashboard[col_join]), 'values'].values
+    # df_dashboard[col_values] = df_dashboard[col_values].fillna(0).astype(int)
     return df_dashboard[col_values]
 
 def process_excel_files():
@@ -14,16 +22,13 @@ def process_excel_files():
 
     programs_file = "programs.xlsx"
 
-    dashboard_file = "dashboard.xlsx"
+    # dashboard_file = "dashboard.xlsx"
 
     bitrix_file = "bitrix.xls"
+    portal_file = "portal.xls"
 
     master_file = "asav.xlsx"
-    master_file_sheet_name = "только онлайн"
-    master_col_programs = "Конкурс в магистратуру"
-    master_col_contracts = "Договор на обучение" # не пусто
-    master_col_payments = "Оплата первого периода" # "Оплачено"
-    master_col_enrollments = "Приказ о зачислении" # не пусто
+    # master_file_sheet_name = "только онлайн"
 
 
     bachelor_app_file = "bac_applications.xls"
@@ -32,41 +37,10 @@ def process_excel_files():
 
     bachelor_enr_file = "bac_enrolled.xlsx"
 
-    bachelor_col_programs = "Конкурсная группа"
-    bachelor_col_programs_names = "Образовательная программа"
-    # bachelor_col_contracts = "Образовательная программа"
-    bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
-    bachelor_col_enrollments = "Конкурс"
 
     main_studyonline = "Общий лендинг"
 
     template_file = "template.xlsx"
-
-
-    # основные параметры
-    col_program = 'program'
-    col_plan = 'plan_rus'
-    col_leads = "Общее кол-во заявок (studyonline) ВСЕГО"
-    col_applications = """Кол-во регистраций в ЛК абитуриента (РФ 1 и 2 приоритет)"""
-    col_contracts = """Договоры (ПК) РФ"""
-    col_payments = """Оплаты (ПК)"""
-    col_enrollments = "Зачисленные (ПК)"
-
-
-    # дополнительные и расчетные параметры
-    col_leads_total = """Общее кол-во заявок ВСЕГО (портал+РК)"""
-    col_leads_partners = """Общее кол-во заявок  c  hse.ru по кнопкам/партнерских стр"""
-    col_conversion_leads_to_contracts = """Конверсия заявка -> договор (без учета заявок с общего ленда)"""
-    col_needed_applications = """Необходимо регистраций в ЛК для обеспечения набора (30% поступили от регистрации в АСАВ)"""
-    NEEDED_APPLICATIONS_RATIO = 30 / 100 #percents
-    col_conversion_applications_to_contracts = """Конверсия ЛК -> договор"""
-    col_conversion_contracts_to_payments = """Конверсия договор -> оплата"""
-    col_conversion_contracts_to_enrollments = """Конверсия договор -> зачисление"""
-    col_payments_div_plan = """Выполнение плана %"""
-    col_income_1year     = "Выручка за 1 год, млн.руб."
-    col_income_all       = "Выручка за весь период обучения"
-    col_income_1year_hse = "Выручка за 1 год после отчислений партнерам"
-    col_income_all_hse   = "Выручка за весь период обучения после отчислений партнерам"
 
 
     # считывание файлов
@@ -114,24 +88,50 @@ def process_excel_files():
         print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
         df_bitrix = pd.DataFrame()
 
+    try:# Число лидов c портала. Почему-то это html таблица, хотя файл xls
+        print("Начинаем считывать данные от Портала")
+        df_portal = pd.read_html(relative_folder + portal_file, header=0)[0]
+        df_portal['Образовательная программа'].fillna(main_studyonline, inplace=True)
+        print("Данные от Портала считаны")
+        # pd.read_excel(relative_folder + bitrix_file)
+    except:
+        print("Нет выгрузки заявок с Портала или она называется не " + portal_file)
+        df_portal = pd.DataFrame()
+
     try:
         leads = df_bitrix.groupby('Образовательная программа')['Образовательная программа'].count()
         # leads = leads * 20 #only for test! REMOVE LATER
         leads = pd.DataFrame({'program_bitrix':leads.index, 'values':leads.values})
     except:
         leads = pd.DataFrame(columns=['program_bitrix', 'values'])
+
+    try:
+        leads_portal = df_portal.groupby('Образовательная программа')['Образовательная программа'].count()
+        # leads = leads * 20 #only for test! REMOVE LATER
+        leads_portal = pd.DataFrame({'program_bitrix':leads_portal.index, 'values':leads_portal.values})
+    except:
+        leads_portal = pd.DataFrame(columns=['program_bitrix', 'values'])
+
     df_master_dashboard[col_leads]   = insert_values(df_master_dashboard,   leads, 'program_bitrix', col_leads)
     df_bachelor_dashboard[col_leads] = insert_values(df_bachelor_dashboard, leads, 'program_bitrix', col_leads)
     main_leads = leads.loc[leads['program_bitrix'] == main_studyonline, 'values'].values[0]
 
+    df_master_dashboard[col_leads_partners]   = insert_values(df_master_dashboard,   leads_portal, 'program_bitrix', col_leads_partners)
+    df_bachelor_dashboard[col_leads_partners] = insert_values(df_bachelor_dashboard, leads_portal, 'program_bitrix', col_leads_partners)
+    # main_leads_portal = leads_portal.loc[leads_portal['program_bitrix'] == main_studyonline, 'values'].values[0]
+
     # АСАВ
     try:
         print("Начинаем считывать данные от АСАВ")
-        df_master = pd.read_excel(relative_folder + master_file, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="L:DT") #sheet_name=master_file_sheet_name,
         print("Данные от АСАВ считаны")
     except:
         print("Ошибка в обработке АСАВ, возможно нет выгрузки из АСАВ или она называется не " + master_file)
         df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
+
+    # убираем офлайн-психов TODO - проверить международный бизнес и другие программы с треками
+    df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
+    df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
 
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
     master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
@@ -151,8 +151,6 @@ def process_excel_files():
     df_master_dashboard[col_enrollments] = insert_values(df_master_dashboard, master_enrollments, col_program, col_enrollments)
 
 
-
-
     # АИС ПК
     try:
         print("Начинаем считывать данные от АИС ПК")
@@ -169,34 +167,35 @@ def process_excel_files():
     'Дизайн  (онлайн)'                                                 :'Дизайн - онлайн (О К)'                                  ,
     'Программные системы и автоматизация процессов разработки (онлайн)':'Программные системы и автоматизация процессов разработки - онлайн (О К)'
         }
+         # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
+        bachelor_applications = df_bachelor_app.groupby(bachelor_col_programs)[bachelor_col_programs].count() #.rename("program")#.sort_values(ascending=False)
+        bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
+        df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
+
+        bachelor_contracts = df_bachelor_con.groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+        bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
+        bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
+        df_bachelor_dashboard[col_contracts] = insert_values(df_bachelor_dashboard, bachelor_contracts, col_program, col_contracts)
+
+        bachelor_payments = df_bachelor_con[(df_bachelor_con[bachelor_col_payments] == "Оплачен")|(df_bachelor_con[bachelor_col_payments] == "Оплачен по квитанциям")].groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+        bachelor_payments = bachelor_payments.rename(index=bachelor_dict)
+        bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
+        df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
+
+        bachelor_enrollments = df_bachelor_enr.groupby(bachelor_col_enrollments)[bachelor_col_enrollments].count()
+        bachelor_enrollments = pd.DataFrame({col_program:bachelor_enrollments.index, 'values':bachelor_enrollments.values})
+        df_bachelor_dashboard[col_enrollments] = insert_values(df_bachelor_dashboard, bachelor_enrollments, col_program, col_enrollments)
+
     except:
         print("Ошибка в обработке АИС ПК, возможно нет выгрузки из АИС ПК или она называется не:\n" + bachelor_app_file)
         print(bachelor_con_file)
         print(bachelor_enr_file)
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
-    # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
-    bachelor_applications = df_bachelor_app.groupby(bachelor_col_programs)[bachelor_col_programs].count() #.rename("program")#.sort_values(ascending=False)
-    bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
-    df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
-
-    bachelor_contracts = df_bachelor_con.groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
-    bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
-    bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
-    df_bachelor_dashboard[col_contracts] = insert_values(df_bachelor_dashboard, bachelor_contracts, col_program, col_contracts)
-
-    bachelor_payments = df_bachelor_con[(df_bachelor_con[bachelor_col_payments] == "Оплачен")|(df_bachelor_con[bachelor_col_payments] == "Оплачен по квитанциям")].groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
-    bachelor_payments = bachelor_payments.rename(index=bachelor_dict)
-    bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
-    df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
-
-    bachelor_enrollments = df_bachelor_enr.groupby(bachelor_col_enrollments)[bachelor_col_enrollments].count()
-    bachelor_enrollments = pd.DataFrame({col_program:bachelor_enrollments.index, 'values':bachelor_enrollments.values})
-    df_bachelor_dashboard[col_enrollments] = insert_values(df_bachelor_dashboard, bachelor_enrollments, col_program, col_enrollments)
 
 
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
-    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads}
+    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads} #, col_leads_partners: main_leads_portal}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False).drop(columns=['program_bitrix'])
 
 

@@ -1,4 +1,7 @@
-def update_sheet(aggregated_data):
+from col_names import *
+import numpy as np
+
+def update_sheet(aggregated_data, update_delta=False):
     import gspread
     import pandas as pd
     from oauth2client.service_account import ServiceAccountCredentials
@@ -17,6 +20,18 @@ def update_sheet(aggregated_data):
 
     # get the first sheet of the Spreadsheet
     sheet_instance = sheet.get_worksheet(0)
+
+    if update_delta:
+        from gspread.utils import ValueRenderOption
+        # sheet_prev = sheet.worksheet('prev')
+        # sheet.del_worksheet(sheet_prev)
+        # TODO - replace using formulae (not absolute range)
+        prev_leads        = np.array(sheet_instance.get("J2:J42", value_render_option=ValueRenderOption.unformatted))
+        prev_applications = np.array(sheet_instance.get("N2:N42", value_render_option=ValueRenderOption.unformatted))
+        aggregated_data[col_leads_delta]        = aggregated_data[col_leads]        - prev_leads[:,0]
+        aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications[:,0]
+
+        # sheet_instance.duplicate(1, sheet_instance.id+1, "prev")
 
     # Clear the worksheet before updating
     # worksheet.clear()
