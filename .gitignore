@@ -4,3 +4,4 @@
 *.json
 data/
 __pycache__/
+dashboard*.xlsx

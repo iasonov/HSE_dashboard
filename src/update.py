@@ -1,5 +1,6 @@
 import numpy as np
 import gspread
+from gspread.utils import ValueRenderOption
 import pandas as pd
 from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
@@ -26,7 +27,6 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
 
 
     if update_delta:
-        from gspread.utils import ValueRenderOption
         # sheet_prev = sheet.worksheet('prev')
         # sheet.del_worksheet(sheet_prev)
         # TODO - replace using formulae (not absolute range)
@@ -34,8 +34,12 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
         prev_applications = np.array(dashboard_sales.get("O2:O42", value_render_option=ValueRenderOption.unformatted))
         aggregated_data[col_leads_delta]        = aggregated_data[col_leads]        - prev_leads[:,0]
         aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications[:,0]
-
-
+    else:
+        prev_leads_delta        = np.array(dashboard_sales.get("L2:L42", value_render_option=ValueRenderOption.unformatted))
+        prev_applications_delta = np.array(dashboard_sales.get("P2:P42", value_render_option=ValueRenderOption.unformatted))
+        aggregated_data[col_leads_delta]        = prev_leads_delta[:,0]
+        aggregated_data[col_applications_delta] = prev_applications_delta[:,0]
+#БАКЭКАН. Экономический анализ / Москва / 380301 Экономика / факультет экономических наук / Бакалавриат
 
         # sheet_instance.duplicate(1, sheet_instance.id+1, "prev")
 
