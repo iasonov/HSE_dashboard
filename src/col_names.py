@@ -4,7 +4,6 @@ master_col_payments = "Оплата первого периода" # "Оплач
 master_col_enrollments = "Приказ о зачислении" # не пусто
 
 bachelor_col_programs = "Конкурсная группа"
-bachelor_col_programs_names = "Образовательная программа"
 # bachelor_col_contracts = "Образовательная программа"
 bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
 bachelor_col_enrollments = "Конкурс"
@@ -12,8 +11,10 @@ bachelor_col_enrollments = "Конкурс"
 
 # основные параметры
 col_program = 'program'
+col_programs_names = "Образовательная программа"
 col_plan = 'plan_rus'
 col_leads = "Общее кол-во заявок (studyonline) ВСЕГО"
+col_leads_since_april = """Кол-во заявок (studyonline) с 01.04"""
 col_applications = """Кол-во регистраций в ЛК абитуриента (РФ 1 и 2 приоритет)"""
 col_contracts = """Договоры (ПК) РФ"""
 col_payments = """Оплаты (ПК)"""

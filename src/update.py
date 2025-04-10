@@ -31,7 +31,7 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
         # sheet.del_worksheet(sheet_prev)
         # TODO - replace using formulae (not absolute range)
         prev_leads        = np.array(dashboard_sales.get("J2:J42", value_render_option=ValueRenderOption.unformatted))
-        prev_applications = np.array(dashboard_sales.get("N2:N42", value_render_option=ValueRenderOption.unformatted))
+        prev_applications = np.array(dashboard_sales.get("O2:O42", value_render_option=ValueRenderOption.unformatted))
         aggregated_data[col_leads_delta]        = aggregated_data[col_leads]        - prev_leads[:,0]
         aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications[:,0]
 
@@ -59,9 +59,9 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     if history_data is not None:
         dashboard_sales.update_acell('B45', str_date + ".2024") # 2024
         dashboard_sales.update_acell('B46', str_date + ".2023") # 2024
-        # dashboard_sales.update_acell('N45', history_data.loc[2024, 'applications'])
-        dashboard_sales.update_acell('N46', str(history_data.loc[2023, 'applications'][0]))
-        dashboard_sales.update_acell('R45', str(history_data.loc[2024, 'contracts'][0]))
-        dashboard_sales.update_acell('R46', str(history_data.loc[2023, 'contracts'][0]))
+        dashboard_sales.update_acell('O45', str(history_data.loc[2024, 'applications'][0]))
+        dashboard_sales.update_acell('O46', str(history_data.loc[2023, 'applications'][0]))
+        dashboard_sales.update_acell('S45', str(history_data.loc[2024, 'contracts'][0]))
+        dashboard_sales.update_acell('S46', str(history_data.loc[2023, 'contracts'][0]))
 
     return

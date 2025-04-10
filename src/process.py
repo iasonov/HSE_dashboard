@@ -18,20 +18,20 @@ def insert_values(df_dashboard, df_values, col_join, col_values): # df_values sh
 def process_history_files():
     templates_folder = "templates/"
     master_applications_file_2023 = "asav_2023_applications.csv"
-    master_contracts_file_2023 = "asav_2023_contracts.csv"
-    # master_applications_file_2024 = "asav_2024_applications.csv"
-    master_contracts_file_2024 = "asav_2024_contracts.csv"
+    master_contracts_file_2023    = "asav_2023_contracts.csv"
+    master_applications_file_2024 = "asav_2024_applications.csv"
+    master_contracts_file_2024    = "asav_2024_contracts.csv"
 
     try:
         applications_dates_2023 = pd.read_csv(templates_folder + master_applications_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        applications_dates_2024 = pd.read_csv(templates_folder + master_applications_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
         contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
         contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
-        # applications_dates_2024 = pd.read_csv(master_applications_file_2024)
 
     except:
         print("Files of previous years are not founded or have errors", master_applications_file_2023)
         print(master_contracts_file_2023)
-        # print(master_applications_file_2024)
+        print(master_applications_file_2024)
         print(master_contracts_file_2024)
 
     now = datetime.now()
@@ -40,7 +40,7 @@ def process_history_files():
 
     df = pd.DataFrame.from_dict({'applications' :
                                  {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 < now).count(),
-                                  2024: 0},
+                                  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 < now).count()},
                                   'contracts' :
                                  {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 < now).count(),
                                   2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 < now).count()}
@@ -64,6 +64,7 @@ def process_current_files():
     # dashboard_file = "dashboard.xlsx"
 
     bitrix_file = "bitrix.xls"
+    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.csv"
     portal_file = "portal.xls"
 
     master_file = "asav.xlsx"
@@ -108,45 +109,85 @@ def process_current_files():
         print("Потерялся " + template_file + " - без него дашборд не собрать")
         return "Error dashboard template"
 
-    try:# Число лидов. Почему-то это html таблица, хотя файл xls
+    try:# Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Битрикса")
-        df_bitrix = pd.read_html(relative_folder + bitrix_file, header=0)[0]
-        df_bitrix['Образовательная программа'].fillna(main_studyonline, inplace=True)
+        df_bitrix_after_april = pd.read_html(relative_folder + bitrix_file, header=0)[0]
+        df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса считаны")
         # pd.read_excel(relative_folder + bitrix_file)
     except:
         print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
-        df_bitrix = pd.DataFrame()
+        df_bitrix_after_april = pd.DataFrame()
 
-    try:# Число лидов c портала. Почему-то это html таблица, хотя файл xls
+    try:# Число лидов c портала c 1 октября по настоящее время. Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Портала")
         df_portal = pd.read_html(relative_folder + portal_file, header=0)[0]
-        df_portal['Образовательная программа'].fillna(main_studyonline, inplace=True)
+        df_portal[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Портала считаны")
         # pd.read_excel(relative_folder + bitrix_file)
     except:
         print("Нет выгрузки заявок с Портала или она называется не " + portal_file)
         df_portal = pd.DataFrame()
 
-    try:
-        leads = df_bitrix.groupby('Образовательная программа')['Образовательная программа'].count()
-        # leads = leads * 20 #only for test! REMOVE LATER
-        leads = pd.DataFrame({'program_bitrix':leads.index, 'values':leads.values})
+    try:# Число лидов из битрикс до 1 апреля (не включительно). Почему-то это html таблица, хотя файл xls
+        print("Начинаем считывать данные от Битрикса до 31.03")
+        df_bitrix_before_april = pd.read_csv(templates_folder + bitrix_file_before_april)
+        df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
+        print("Данные от Битрикса до 31.03 считаны")
+        # pd.read_excel(relative_folder + bitrix_file)
     except:
-        leads = pd.DataFrame(columns=['program_bitrix', 'values'])
+        print("Нет выгрузки заявок из Битрикса до 31.03 или она называется не " + bitrix_file_before_april)
+        df_bitrix_before_april = pd.DataFrame() 
+
+    try: 
+        leads_after_april = df_bitrix_after_april.groupby(col_programs_names)[col_programs_names].count()
+        leads_after_april = pd.DataFrame({'program_bitrix':leads_after_april.index, 'values':leads_after_april.values})
+    except:
+        leads_after_april = pd.DataFrame(columns=['program_bitrix', 'values'])
+
+    try: 
+        leads_before_april = df_bitrix_before_april.groupby(col_programs_names)[col_programs_names].count()
+        leads_before_april = pd.DataFrame({'program_bitrix':leads_before_april.index, 'values':leads_before_april.values})
+    except:
+        leads_before_april = pd.DataFrame(columns=['program_bitrix', 'values'])
+
+    #     # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
+    # master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
+    # master_applications = pd.DataFrame({col_program:master_applications.index, 'values':master_applications.values})
+    # df_master_dashboard[col_applications_since_april] = insert_values(df_master_dashboard, master_applications, col_program, col_applications_since_april)
+  
+  
+    # try:
+    #     df_master_2024 = pd.read_csv(templates_folder + master_file_before_april, usecols="J:T")
+    #     master_applications_2024 = df_master_2024.groupby(master_col_programs)[master_col_programs].count()
+    #     master_applications_2024 = pd.DataFrame({col_program:master_applications_2024.index, 'values':master_applications_2024.values})
+    #     df_master_dashboard[col_applications] = insert_values(df_master_dashboard, master_applications_2024, col_program, col_applications)
+    # except:
+    #     print("Ошибка при чтении файла asav_2024-10-01_2025-03-31.csv")
+    #     df_master_dashboard[col_applications] = 0
+
 
     try:
-        leads_portal = df_portal.groupby('Образовательная программа')['Образовательная программа'].count()
-        # leads = leads * 20 #only for test! REMOVE LATER
+        leads_portal = df_portal.groupby(col_programs_names)[col_programs_names].count()
         leads_portal = pd.DataFrame({'program_bitrix':leads_portal.index, 'values':leads_portal.values})
     except:
         leads_portal = pd.DataFrame(columns=['program_bitrix', 'values'])
 
-    df_master_dashboard[col_leads]   = insert_values(df_master_dashboard,   leads, 'program_bitrix', col_leads)
-    df_bachelor_dashboard[col_leads] = insert_values(df_bachelor_dashboard, leads, 'program_bitrix', col_leads)
-    main_leads = leads.loc[leads['program_bitrix'] == main_studyonline, 'values'].values[0]
+    
+    df_master_dashboard  [col_leads] = insert_values(df_master_dashboard,   leads_before_april, 'program_bitrix', col_leads)
+    df_bachelor_dashboard[col_leads] = insert_values(df_bachelor_dashboard, leads_before_april, 'program_bitrix', col_leads)
+    
+    df_master_dashboard  [col_leads_after_april] = insert_values(df_master_dashboard,   leads_after_april, 'program_bitrix', col_leads_after_april)
+    df_bachelor_dashboard[col_leads_after_april] = insert_values(df_bachelor_dashboard, leads_after_april, 'program_bitrix', col_leads_after_april)
 
-    df_master_dashboard[col_leads_partners]   = insert_values(df_master_dashboard,   leads_portal, 'program_bitrix', col_leads_partners)
+    df_master_dashboard  [col_leads] += df_master_dashboard  [col_leads_after_april] # TODO check
+    df_bachelor_dashboard[col_leads] += df_bachelor_dashboard[col_leads_after_april]
+
+    main_leads             = leads_before_april.loc[leads_before_april['program_bitrix'] == main_studyonline, 'values'].values[0]
+    main_leads_after_april = leads_after_april.loc[leads_after_april['program_bitrix'] == main_studyonline, 'values'].values[0]
+    main_leads            += main_leads_after_april # TODO check
+
+    df_master_dashboard  [col_leads_partners] = insert_values(df_master_dashboard,   leads_portal, 'program_bitrix', col_leads_partners)
     df_bachelor_dashboard[col_leads_partners] = insert_values(df_bachelor_dashboard, leads_portal, 'program_bitrix', col_leads_partners)
     # main_leads_portal = leads_portal.loc[leads_portal['program_bitrix'] == main_studyonline, 'values'].values[0]
 
@@ -202,12 +243,12 @@ def process_current_files():
         bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
         df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
 
-        bachelor_contracts = df_bachelor_con.groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+        bachelor_contracts = df_bachelor_con.groupby(col_programs_names)[col_programs_names].count()
         bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
         bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
         df_bachelor_dashboard[col_contracts] = insert_values(df_bachelor_dashboard, bachelor_contracts, col_program, col_contracts)
 
-        bachelor_payments = df_bachelor_con[(df_bachelor_con[bachelor_col_payments] == "Оплачен")|(df_bachelor_con[bachelor_col_payments] == "Оплачен по квитанциям")].groupby(bachelor_col_programs_names)[bachelor_col_programs_names].count()
+        bachelor_payments = df_bachelor_con[(df_bachelor_con[bachelor_col_payments] == "Оплачен")|(df_bachelor_con[bachelor_col_payments] == "Оплачен по квитанциям")].groupby(col_programs_names)[col_programs_names].count()
         bachelor_payments = bachelor_payments.rename(index=bachelor_dict)
         bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
         df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
@@ -225,7 +266,7 @@ def process_current_files():
 
 
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
-    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads} #, col_leads_partners: main_leads_portal}
+    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads, col_leads_after_april: main_leads_after_april}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False).drop(columns=['program_bitrix'])
 
     df.fillna(0, inplace=True)
@@ -239,8 +280,8 @@ def process_current_files():
     df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
     df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan]
     df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
-    df.loc[df['level'] == 'master', col_income_all] = df[col_income_1year]  * 2
-    df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year]  * 4
+    df.loc[df['level'] == 'master', col_income_all]   = df[col_income_1year] * 2
+    df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year] * 4
     # df[col_income_all       ] = df[col_income_1year]  * (2 if df['level'] == 'master' else 4) # TODO check later
     df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
     df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
