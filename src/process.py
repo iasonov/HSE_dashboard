@@ -64,7 +64,7 @@ def process_current_files():
     # dashboard_file = "dashboard.xlsx"
 
     bitrix_file = "bitrix.xls"
-    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.csv"
+    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.xlsx"
     portal_file = "portal.xls"
 
     master_file = "asav.xlsx"
@@ -131,21 +131,21 @@ def process_current_files():
 
     try:# Число лидов из битрикс до 1 апреля (не включительно). Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Битрикса до 31.03")
-        df_bitrix_before_april = pd.read_csv(templates_folder + bitrix_file_before_april)
+        df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april, usecols="I:N")
         df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса до 31.03 считаны")
         # pd.read_excel(relative_folder + bitrix_file)
     except:
         print("Нет выгрузки заявок из Битрикса до 31.03 или она называется не " + bitrix_file_before_april)
-        df_bitrix_before_april = pd.DataFrame() 
+        df_bitrix_before_april = pd.DataFrame()
 
-    try: 
+    try:
         leads_after_april = df_bitrix_after_april.groupby(col_programs_names)[col_programs_names].count()
         leads_after_april = pd.DataFrame({'program_bitrix':leads_after_april.index, 'values':leads_after_april.values})
     except:
         leads_after_april = pd.DataFrame(columns=['program_bitrix', 'values'])
 
-    try: 
+    try:
         leads_before_april = df_bitrix_before_april.groupby(col_programs_names)[col_programs_names].count()
         leads_before_april = pd.DataFrame({'program_bitrix':leads_before_april.index, 'values':leads_before_april.values})
     except:
@@ -155,8 +155,8 @@ def process_current_files():
     # master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
     # master_applications = pd.DataFrame({col_program:master_applications.index, 'values':master_applications.values})
     # df_master_dashboard[col_applications_since_april] = insert_values(df_master_dashboard, master_applications, col_program, col_applications_since_april)
-  
-  
+
+
     # try:
     #     df_master_2024 = pd.read_csv(templates_folder + master_file_before_april, usecols="J:T")
     #     master_applications_2024 = df_master_2024.groupby(master_col_programs)[master_col_programs].count()
@@ -173,10 +173,10 @@ def process_current_files():
     except:
         leads_portal = pd.DataFrame(columns=['program_bitrix', 'values'])
 
-    
+
     df_master_dashboard  [col_leads] = insert_values(df_master_dashboard,   leads_before_april, 'program_bitrix', col_leads)
     df_bachelor_dashboard[col_leads] = insert_values(df_bachelor_dashboard, leads_before_april, 'program_bitrix', col_leads)
-    
+
     df_master_dashboard  [col_leads_after_april] = insert_values(df_master_dashboard,   leads_after_april, 'program_bitrix', col_leads_after_april)
     df_bachelor_dashboard[col_leads_after_april] = insert_values(df_bachelor_dashboard, leads_after_april, 'program_bitrix', col_leads_after_april)
 

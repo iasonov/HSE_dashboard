@@ -13,7 +13,7 @@ df_current.to_excel(file_name)
 
 df_history = process_history_files()
 
-# update_sheet(pd.read_excel(file_name), True, df_history)
+update_sheet(pd.read_excel(file_name), False, df_history)
 
 
 # update_sheet(process_excel_files())
