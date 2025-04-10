@@ -1,10 +1,12 @@
-from col_names import *
 import numpy as np
+import gspread
+import pandas as pd
+from datetime import datetime
+from oauth2client.service_account import ServiceAccountCredentials
+from col_names import *
 
-def update_sheet(aggregated_data, update_delta=False):
-    import gspread
-    import pandas as pd
-    from oauth2client.service_account import ServiceAccountCredentials
+def update_sheet(aggregated_data, update_delta=False, history_data=None):
+
 
     # define the scope
     scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
@@ -19,17 +21,21 @@ def update_sheet(aggregated_data, update_delta=False):
     sheet = client.open('Еженедельный отчет 2025_общий')
 
     # get the first sheet of the Spreadsheet
-    sheet_instance = sheet.get_worksheet(0)
+    dashboard_sales = sheet.get_worksheet(0)
+    # dashboard_simple = sheet.get_worksheet(1)
+
 
     if update_delta:
         from gspread.utils import ValueRenderOption
         # sheet_prev = sheet.worksheet('prev')
         # sheet.del_worksheet(sheet_prev)
         # TODO - replace using formulae (not absolute range)
-        prev_leads        = np.array(sheet_instance.get("J2:J42", value_render_option=ValueRenderOption.unformatted))
-        prev_applications = np.array(sheet_instance.get("N2:N42", value_render_option=ValueRenderOption.unformatted))
+        prev_leads        = np.array(dashboard_sales.get("J2:J42", value_render_option=ValueRenderOption.unformatted))
+        prev_applications = np.array(dashboard_sales.get("N2:N42", value_render_option=ValueRenderOption.unformatted))
         aggregated_data[col_leads_delta]        = aggregated_data[col_leads]        - prev_leads[:,0]
         aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications[:,0]
+
+
 
         # sheet_instance.duplicate(1, sheet_instance.id+1, "prev")
 
@@ -39,11 +45,23 @@ def update_sheet(aggregated_data, update_delta=False):
     # Update the worksheet with the aggregated data
     # try:
     # sheet_instance.set_dataframe(aggregated_data, 'A1')
-    sheet_instance.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
+    dashboard_sales.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
     #     #sheet_instance.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
     #     print("Google Spreadsheet updated successfully.")
     # except:
     #     aggregated_data.to_excel("dashboard.xlsx")
     #     print("Error update")
+    str_time = datetime.now().strftime("%H:%M")
+    str_date = datetime.now().strftime("%d.%m")
+
+    # TODO replace without absolute cell indexes
+    dashboard_sales.update_acell('B43', str_time + ", " + str_date + ".2025") # 2025
+    if history_data is not None:
+        dashboard_sales.update_acell('B45', str_date + ".2024") # 2024
+        dashboard_sales.update_acell('B46', str_date + ".2023") # 2024
+        # dashboard_sales.update_acell('N45', history_data.loc[2024, 'applications'])
+        dashboard_sales.update_acell('N46', str(history_data.loc[2023, 'applications'][0]))
+        dashboard_sales.update_acell('R45', str(history_data.loc[2024, 'contracts'][0]))
+        dashboard_sales.update_acell('R46', str(history_data.loc[2023, 'contracts'][0]))
 
     return

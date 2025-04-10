@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 from col_names import *
+from datetime import datetime, timedelta
 
 def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have "values" column
     for i, row in df_dashboard.iterrows():
@@ -13,14 +15,51 @@ def insert_values(df_dashboard, df_values, col_join, col_values): # df_values sh
     # df_dashboard[col_values] = df_dashboard[col_values].fillna(0).astype(int)
     return df_dashboard[col_values]
 
-def process_excel_files():
-    import numpy as np
+def process_history_files():
+    templates_folder = "templates/"
+    master_applications_file_2023 = "asav_2023_applications.csv"
+    master_contracts_file_2023 = "asav_2023_contracts.csv"
+    # master_applications_file_2024 = "asav_2024_applications.csv"
+    master_contracts_file_2024 = "asav_2024_contracts.csv"
+
+    try:
+        applications_dates_2023 = pd.read_csv(templates_folder + master_applications_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
+        # applications_dates_2024 = pd.read_csv(master_applications_file_2024)
+
+    except:
+        print("Files of previous years are not founded or have errors", master_applications_file_2023)
+        print(master_contracts_file_2023)
+        # print(master_applications_file_2024)
+        print(master_contracts_file_2024)
+
+    now = datetime.now()
+    delta_now_2023 = timedelta(days=365+366) # TODO check both deltas
+    delta_now_2024 = timedelta(days=366)
+
+    df = pd.DataFrame.from_dict({'applications' :
+                                 {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 < now).count(),
+                                  2024: 0},
+                                  'contracts' :
+                                 {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 < now).count(),
+                                  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 < now).count()}
+                                }) #columns=['year', 'applications', 'contracts']
+
+    return df
+
+
+def process_current_files():
+
+    NEEDED_APPLICATIONS_RATIO = 30 / 100 #percents
+    main_studyonline = "Общий лендинг"
 
     # папки и файлы для загрузки
     relative_folder = "data/"
     templates_folder = "templates/"
 
     programs_file = "programs.xlsx"
+    template_file = "template.xlsx"
 
     # dashboard_file = "dashboard.xlsx"
 
@@ -30,18 +69,9 @@ def process_excel_files():
     master_file = "asav.xlsx"
     # master_file_sheet_name = "только онлайн"
 
-
     bachelor_app_file = "bac_applications.xls"
-
     bachelor_con_file = "bac_contracts.xls"
-
     bachelor_enr_file = "bac_enrolled.xlsx"
-
-
-    main_studyonline = "Общий лендинг"
-
-    template_file = "template.xlsx"
-
 
     # считывание файлов
 
@@ -198,6 +228,7 @@ def process_excel_files():
     df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_leads: main_leads} #, col_leads_partners: main_leads_portal}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False).drop(columns=['program_bitrix'])
 
+    df.fillna(0, inplace=True)
 
     # считаем второстепенные столбцы
     df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
@@ -208,9 +239,11 @@ def process_excel_files():
     df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
     df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan]
     df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
-    # df[col_income_all       ] = df['price'] * df[col_payments] * (2 if df['level'] == 'master' else 4)
-    # df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
-    # df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
+    df.loc[df['level'] == 'master', col_income_all] = df[col_income_1year]  * 2
+    df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year]  * 4
+    # df[col_income_all       ] = df[col_income_1year]  * (2 if df['level'] == 'master' else 4) # TODO check later
+    df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
+    df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
 
     df.replace(np.inf, 0, inplace=True)
     df.fillna(0, inplace=True)
