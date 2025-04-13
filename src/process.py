@@ -17,6 +17,8 @@ def insert_values(df_dashboard, df_values, col_join, col_values): # df_values sh
 
 def process_history_files():
     templates_folder = "templates/"
+    master_leads_file_2023        = "bitrix_2023-04-01_2023-09-15.csv"
+    master_leads_file_2024        = "bitrix_2024-04-01_2024-09-15.csv"
     master_applications_file_2023 = "asav_2023_applications.csv"
     master_contracts_file_2023    = "asav_2023_contracts.csv"
     master_applications_file_2024 = "asav_2024_applications.csv"
@@ -27,23 +29,29 @@ def process_history_files():
         applications_dates_2024 = pd.read_csv(templates_folder + master_applications_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
         contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
         contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
-
+        leads_dates_2023 = pd.read_csv(templates_folder + master_leads_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        leads_dates_2024 = pd.read_csv(templates_folder + master_leads_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
     except:
         print("Files of previous years are not founded or have errors", master_applications_file_2023)
         print(master_contracts_file_2023)
         print(master_applications_file_2024)
         print(master_contracts_file_2024)
+        print(master_leads_file_2023)
+        print(master_leads_file_2024)
 
     now = datetime.now()
     delta_now_2023 = timedelta(days=365+366) # TODO check both deltas
     delta_now_2024 = timedelta(days=366)
 
-    df = pd.DataFrame.from_dict({'applications' :
-                                 {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 < now).count(),
-                                  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 < now).count()},
+    df = pd.DataFrame.from_dict({'leads' :
+                                 {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
+                                  2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count()},
+                                 'applications' :
+                                 {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 <= now).count(),
+                                  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 <= now).count()},
                                   'contracts' :
-                                 {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 < now).count(),
-                                  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 < now).count()}
+                                 {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 <= now).count(),
+                                  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 <= now).count()}
                                 }) #columns=['year', 'applications', 'contracts']
 
     return df

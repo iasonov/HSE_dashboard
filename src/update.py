@@ -63,6 +63,8 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     if history_data is not None:
         dashboard_sales.update_acell('B45', str_date + ".2024") # 2024
         dashboard_sales.update_acell('B46', str_date + ".2023") # 2024
+        dashboard_sales.update_acell('K45', str(history_data.loc[2024, 'leads'][0]))
+        dashboard_sales.update_acell('K46', str(history_data.loc[2023, 'leads'][0]))
         dashboard_sales.update_acell('O45', str(history_data.loc[2024, 'applications'][0]))
         dashboard_sales.update_acell('O46', str(history_data.loc[2023, 'applications'][0]))
         dashboard_sales.update_acell('S45', str(history_data.loc[2024, 'contracts'][0]))
