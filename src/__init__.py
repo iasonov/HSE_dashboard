@@ -10,10 +10,14 @@ file_name = "dashboard" + str + ".xlsx"
 df_current = process_current_files()
 df_current.to_excel(file_name)
 
-
 df_history = process_history_files()
 
-update_sheet(pd.read_excel(file_name), False, df_history)
+update_deltas = False # each monday and thursday
+update_google_dashboard = True
+
+if update_google_dashboard:
+  update_sheet(pd.read_excel(file_name), update_deltas, df_history)
+
 #print(df_history)
 
 
