@@ -4,6 +4,7 @@
 [ ] archive data (leads, applications, contracts) for each program
 
 ## Technical debt
+[ ] change bachelor of design fee to 420
 [ ] move templates and data to private account
 [ ] check all TODO marks
 [ ] choose "ЭКАНБАК" vs. "БАКЭКАН" and put it into database
