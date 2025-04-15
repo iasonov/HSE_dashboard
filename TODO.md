@@ -4,6 +4,7 @@
 [ ] archive data (leads, applications, contracts) for each program
 
 ## Technical debt
+[ ] move templates and data to private account
 [ ] check all TODO marks
 [ ] choose "ЭКАНБАК" vs. "БАКЭКАН" and put it into database
 [x] test after leads 2023 upload added
