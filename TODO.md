@@ -1,8 +1,9 @@
-## Feautures
+## Features
 [ ] gender for each program (based on applications?)
 [ ] age for each program (based on applications?)
 [ ] archive data (leads, applications, contracts) for each program
 [ ] delta for 1 weeks
+[ ] add unique client's (applications column) for 2023-2025 years
 
 ## Technical debt
 [ ] move templates and data to private account
