@@ -3,6 +3,39 @@ import numpy as np
 from col_names import *
 from datetime import datetime, timedelta
 
+def categorize_ages(age_column):
+    # Определяем диапазоны
+    bins = [0, 17, 23, 29, 35, 41, 47, float('inf')]
+    labels = ['0-17', '18-23', '24-29', '30-35', '36-41', '42-47', '48+']
+
+    # Используем pd.cut для разбиения на интервалы
+    categories = pd.cut(age_column, bins=bins, labels=labels, right=True, include_lowest=True)
+
+    # Считаем количество в каждом диапазоне
+    counts = categories.value_counts().sort_index()
+
+    return np.array2string(counts.values, separator=";")[1:-1]
+
+def years_ago(years, from_date=None):
+    if from_date is None:
+        from_date = datetime.now()
+    try:
+        return from_date.replace(year=from_date.year - years)
+    except ValueError:
+        # Must be 2/29!
+        assert from_date.month == 2 and from_date.day == 29 # can be removed
+        return from_date.replace(month=2, day=28,
+                                 year=from_date.year-years)
+
+def num_years(begin, end=None):
+    if end is None:
+        end = datetime.now()
+    num_years = int((end - begin).days / 365.2425)
+    if begin > years_ago(num_years, end):
+        return num_years - 1
+    else:
+        return num_years
+
 def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have "values" column
     for i, row in df_dashboard.iterrows():
         if row[col_join] in df_values[col_join].values:
@@ -19,23 +52,39 @@ def process_history_files():
     templates_folder = "templates/"
     master_leads_file_2023        = "bitrix_2023-04-01_2023-09-15.csv"
     master_leads_file_2024        = "bitrix_2024-04-01_2024-09-15.csv"
-    master_applications_file_2023 = "asav_2023_applications.csv"
-    master_contracts_file_2023    = "asav_2023_contracts.csv"
-    master_applications_file_2024 = "asav_2024_applications.csv"
-    master_contracts_file_2024    = "asav_2024_contracts.csv"
+    # master_applications_file_2023 = "asav_2023_applications.csv"
+    # master_contracts_file_2023    = "asav_2023_contracts.csv"
+    # master_applications_file_2024 = "asav_2024_applications.csv"
+    # master_contracts_file_2024    = "asav_2024_contracts.csv"
+    asav_file_2023                = "asav_2023.xlsx"
+    asav_file_2024                = "asav_2024.xlsx"
+
+    # TODO вписать сводные расчеты
+
+    print("Начинаем считывать исторические данные")
 
     try:
-        applications_dates_2023 = pd.read_csv(templates_folder + master_applications_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
-        applications_dates_2024 = pd.read_csv(templates_folder + master_applications_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
-        contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
-        contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
+        # applications_dates_2023 = pd.read_csv(templates_folder + master_applications_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        # applications_dates_2024 = pd.read_csv(templates_folder + master_applications_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
+        # contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
+        # contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
         leads_dates_2023 = pd.read_csv(templates_folder + master_leads_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
         leads_dates_2024 = pd.read_csv(templates_folder + master_leads_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
+
+        asav_2023 = pd.read_excel(templates_folder + asav_file_2023, parse_dates=[0, 1], skiprows=1, date_format="%d.%m.%Y")
+        asav_2023['applications_dates'] = pd.to_datetime(asav_2023['applications_dates'], format='%Y-%m-%d 00:00:00')
+        asav_2023['contracts_dates'] = pd.to_datetime(asav_2023['contracts_dates'], errors='coerce', format='%d.%m.%Y')
+
+        asav_2024 = pd.read_excel(templates_folder + asav_file_2024, parse_dates=[0, 1], skiprows=1, date_format="%d.%m.%Y")
+        asav_2024['applications_dates'] = pd.to_datetime(asav_2024['applications_dates'], format='%Y-%m-%d 00:00:00')
+        asav_2024['contracts_dates'] = pd.to_datetime(asav_2024['contracts_dates'], errors='coerce', format='%d.%m.%Y')
+
     except:
-        print("Files of previous years are not founded or have errors", master_applications_file_2023)
-        print(master_contracts_file_2023)
-        print(master_applications_file_2024)
-        print(master_contracts_file_2024)
+        print("Files of previous years are not founded or have errors")
+        # , master_applications_file_2023)
+        # print(master_contracts_file_2023)
+        # print(master_applications_file_2024)
+        # print(master_contracts_file_2024)
         print(master_leads_file_2023)
         print(master_leads_file_2024)
 
@@ -43,18 +92,34 @@ def process_history_files():
     delta_now_2023 = timedelta(days=365+366) # TODO check both deltas
     delta_now_2024 = timedelta(days=366)
 
-    df = pd.DataFrame.from_dict({'leads' :
-                                 {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
-                                  2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count()},
-                                 'applications' :
-                                 {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 <= now).count(),
-                                  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 <= now).count()},
-                                  'contracts' :
-                                 {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 <= now).count(),
-                                  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 <= now).count()}
-                                }) #columns=['year', 'applications', 'contracts']
+    asav_2023_no_duplicates = asav_2023.drop_duplicates(subset=[col_id_asav])
+    asav_2024_no_duplicates = asav_2024.drop_duplicates(subset=[col_id_asav])
 
-    return df
+
+    df_pivot = pd.DataFrame.from_dict({'leads' :
+                                {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
+                                 2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count()},
+                                # 'applications_old' :
+                                # {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 <= now).count(),
+                                #  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 <= now).count()},
+                                # 'contracts_old' :
+                                # {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 <= now).count(),
+                                #  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 <= now).count()},
+                                'applications' :
+                                {2023: asav_2023[asav_2023['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
+                                 2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()},
+                                'contracts' :
+                                {2023: asav_2023[asav_2023['contracts_dates'] + delta_now_2023 <= now]['contracts_dates'].count(),
+                                 2024: asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count()},
+                                'applications_unique' :
+                                {2023: asav_2023_no_duplicates[asav_2023_no_duplicates['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
+                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()}
+                                }) #columns=['year', 'applications', 'contracts']
+    df_applications_prev = asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count()
+    df_contracts_prev    = asav_2024[asav_2024['contracts_dates']    + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count()
+
+    print("Исторические данные считаны")
+    return df_pivot, df_applications_prev, df_contracts_prev
 
 
 def process_current_files():
@@ -83,13 +148,11 @@ def process_current_files():
     bachelor_enr_file = "bac_enrolled.xlsx"
 
     # считывание файлов
-
     try:
         # cчитываем базу данных програм
         print("Начинаем считывать базу программ")
         df_online_programs = pd.read_excel(templates_folder + programs_file)
         df_online_programs = df_online_programs[df_online_programs['format'] != 'offline'].reset_index(drop=True)
-        #df_online_programs[['plan_rus', 'plan_foreign']] = df_online_programs[['plan_rus', 'plan_foreign']].astype(int)
         df_online_master_programs = df_online_programs[df_online_programs['level'] == 'master'].drop(columns=["format"]).sort_values(by=col_program).reset_index(drop=True)
         df_online_bachelor_programs = df_online_programs[df_online_programs['level'] == 'bachelor'].drop(columns=["format"]).sort_values(by=col_program).reset_index(drop=True)
         print("База программ обработана")
@@ -105,27 +168,34 @@ def process_current_files():
         df_master_dashboard = pd.concat([df_online_master_programs, df_master_dashboard])
         df_master_dashboard['program_bitrix'] = df_master_dashboard['program_bitrix'].fillna("")
         df_master_dashboard = df_master_dashboard.fillna(0)
-        df_master_dashboard[['plan_rus', 'plan_foreign']] = df_master_dashboard[['plan_rus', 'plan_foreign']].astype(int)
+        df_master_dashboard[[col_plan_rus, col_plan_foreign]] = df_master_dashboard[[col_plan_rus, col_plan_foreign]].astype(int)
 
         df_bachelor_dashboard = pd.read_excel(templates_folder + template_file)
         df_bachelor_dashboard = pd.concat([df_online_bachelor_programs, df_bachelor_dashboard])
         df_bachelor_dashboard['program_bitrix'] = df_bachelor_dashboard['program_bitrix'].fillna("")
         df_bachelor_dashboard = df_bachelor_dashboard.fillna(0)
-        df_bachelor_dashboard[['plan_rus', 'plan_foreign']] = df_bachelor_dashboard[['plan_rus', 'plan_foreign']].astype(int)
+        df_bachelor_dashboard[[col_plan_rus, col_plan_foreign]] = df_bachelor_dashboard[[col_plan_rus, col_plan_foreign]].astype(int)
         print("Шаблон дашборда считан")
     except:
         print("Потерялся " + template_file + " - без него дашборд не собрать")
         return "Error dashboard template"
 
     try:# Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
-        print("Начинаем считывать данные от Битрикса")
+        print("Начинаем считывать данные от Битрикса в html-формате")
         df_bitrix_after_april = pd.read_html(relative_folder + bitrix_file, header=0)[0]
         df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса считаны")
         # pd.read_excel(relative_folder + bitrix_file)
     except:
-        print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
-        df_bitrix_after_april = pd.DataFrame()
+        try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
+            print("Начинаем считывать данные от Битрикса в xls-формате")
+            df_bitrix_after_april = pd.read_excel(relative_folder + bitrix_file, header=0)
+            df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            print("Данные от Битрикса считаны")
+            # pd.read_excel(relative_folder + bitrix_file)
+        except:
+            print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
+            df_bitrix_after_april = pd.DataFrame()
 
     try:# Число лидов c портала c 1 октября по настоящее время. Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Портала")
@@ -202,7 +272,7 @@ def process_current_files():
     # АСАВ
     try:
         print("Начинаем считывать данные от АСАВ")
-        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="L:DT") #sheet_name=master_file_sheet_name,
+        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:DT") #sheet_name=master_file_sheet_name,
         print("Данные от АСАВ считаны")
     except:
         print("Ошибка в обработке АСАВ, возможно нет выгрузки из АСАВ или она называется не " + master_file)
@@ -211,6 +281,8 @@ def process_current_files():
     # убираем офлайн-психов TODO - проверить международный бизнес и другие программы с треками
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
+    df_master = df_master.dropna(subset=[col_birthday])
+
 
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
     master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
@@ -228,6 +300,24 @@ def process_current_files():
     master_enrollments = df_master[df_master[master_col_enrollments].notna()].groupby(master_col_programs)[master_col_programs].count()
     master_enrollments = pd.DataFrame({col_program:master_enrollments.index, 'values':master_enrollments.values})
     df_master_dashboard[col_enrollments] = insert_values(df_master_dashboard, master_enrollments, col_program, col_enrollments)
+
+    master_male = df_master[df_master[col_gender_asav] == "Муж."].groupby(master_col_programs)[master_col_programs].count()
+    master_male = pd.DataFrame({col_program:master_male.index, 'values':master_male.values})
+    df_master_dashboard[col_male] = insert_values(df_master_dashboard, master_male, col_program, col_male)
+
+    master_female = df_master[df_master[col_gender_asav] == "Жен."].groupby(master_col_programs)[master_col_programs].count()
+    master_female = pd.DataFrame({col_program:master_female.index, 'values':master_female.values})
+    df_master_dashboard[col_female] = insert_values(df_master_dashboard, master_female, col_program, col_female)
+
+
+    df_master[col_birthday] = pd.to_datetime(df_master[col_birthday]).apply(num_years)
+    master_years_bars = df_master.groupby(master_col_programs)[col_birthday].apply(categorize_ages)
+    master_years_bars = pd.DataFrame({col_program:master_years_bars.index, 'values':master_years_bars.values})
+    df_master_dashboard[col_ages] = insert_values(df_master_dashboard, master_years_bars, col_program, col_ages)
+
+    master_years_mean = df_master.groupby(master_col_programs)[col_birthday].mean()
+    master_years_mean = pd.DataFrame({col_program:master_years_mean.index, 'values':master_years_mean.values})
+    df_master_dashboard[col_ages_mean] = insert_values(df_master_dashboard, master_years_mean, col_program, col_ages_mean)
 
 
     # АИС ПК
@@ -271,6 +361,16 @@ def process_current_files():
         print(bachelor_enr_file)
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
+    df_history, df_applications_prev, df_contracts_prev = process_history_files() # Only for master for now
+    df_applications_prev = pd.DataFrame({col_program:df_applications_prev.index, 'values':df_applications_prev.values})
+    df_master_dashboard[col_applications_prev] = insert_values(df_master_dashboard, df_applications_prev, col_program, col_applications_prev)
+
+    df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
+    df_master_dashboard[col_contracts_prev] = insert_values(df_master_dashboard, df_contracts_prev, col_program, col_contracts_prev)
+
+    asav_2025_no_duplicates = df_master.drop_duplicates(subset=['Unnamed: 0']) # TODO rename to col_id_asav
+
+    df_history.loc[2025, 'applications_unique'] = asav_2025_no_duplicates[master_col_programs].count()
 
 
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
@@ -282,11 +382,11 @@ def process_current_files():
     # считаем второстепенные столбцы
     df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
     df[col_conversion_leads_to_contracts]          = df[col_contracts] / df[col_leads_total]
-    df[col_needed_applications]              = round(df[col_plan]/ NEEDED_APPLICATIONS_RATIO)
+    df[col_needed_applications]              = round(df[col_plan_rus]/ NEEDED_APPLICATIONS_RATIO)
     df[col_conversion_applications_to_contracts]   = df[col_contracts] / df[col_applications]
     df[col_conversion_contracts_to_payments]       = df[col_payments]  / df[col_contracts]
     df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
-    df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan]
+    df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan_rus]
     df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
     df.loc[df['level'] == 'master', col_income_all]   = df[col_income_1year] * 2
     df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year] * 4
@@ -294,7 +394,21 @@ def process_current_files():
     df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
     df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
 
+    # def cells_from_row(row):
+    #     return "I" + str(row.name+2) + ":J" + str(row.name+2)
+
+    # def gender_bars_function(row):
+    #     return "=SPARKLINE(" + cells_from_row(row) + ',{"charttype","bar";"max",MAX(SUM(' + cells_from_row(row) + '),1);"color1","blue";"color2","red"})'
+    # df[col_gender] = df.apply(gender_bars_function, axis=1)
+
+    # def ages_bars_function(row):
+    #     return "=sparkline(SPLIT(L"+ str(row.name + 2) + ',";"),{"charttype", "column"; "color", "gray"})'
+    # df[col_ages_bars] = df.apply(ages_bars_function, axis=1)
+
+    # =SPARKLINE(I3:J3,{"charttype","bar";"max",MAX(SUM(I3:J3),1);"color1","blue";"color2","red"})
+    #=sparkline(SPLIT(L3,";"),{"charttype", "column"; "color", "gray"})
+
     df.replace(np.inf, 0, inplace=True)
     df.fillna(0, inplace=True)
 
-    return df
+    return df, df_history
