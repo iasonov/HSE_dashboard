@@ -1,12 +1,14 @@
 ## Features
 [x] gender for each program (based on applications?)
 [x] age for each program (based on applications?)
-[ ] archive data (leads, applications, contracts) for each program
+[ ] archive data (leads) for each program
+[x] archive data applications, contracts for each program
 [ ] delta for 1 weeks
 [x] add unique client's (applications column) for 2023-2025 years
 [x] sparkline for all data
 
 ## Technical debt
+[ ] check col_conversion_contracts_to_enrollments calculations
 [ ] deltas has mistakes
 [ ] move templates and data to private account
 [ ] check all TODO marks

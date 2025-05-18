@@ -385,7 +385,7 @@ def process_current_files():
     df[col_needed_applications]              = round(df[col_plan_rus]/ NEEDED_APPLICATIONS_RATIO)
     df[col_conversion_applications_to_contracts]   = df[col_contracts] / df[col_applications]
     df[col_conversion_contracts_to_payments]       = df[col_payments]  / df[col_contracts]
-    df[col_conversion_contracts_to_enrollments]    = df[col_payments]  / df[col_contracts]
+    df[col_conversion_contracts_to_enrollments]    = df[col_enrollments]  / df[col_contracts]
     df[col_payments_div_plan]                      = df[col_payments]  / df[col_plan_rus]
     df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
     df.loc[df['level'] == 'master', col_income_all]   = df[col_income_1year] * 2
