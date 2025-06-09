@@ -7,8 +7,11 @@
 [ ] dynamics graphics
 [ ] group by manager
 [x] comparison with prev. year
+[x] sparkline for all data
 
 ## Technical debt
+[ ] check col_conversion_contracts_to_enrollments calculations
+[ ] deltas has mistakes
 [ ] move templates and data to private account
 [ ] check all TODO marks
 [x] change bachelor of design fee to 420 and ПРВИС to 500

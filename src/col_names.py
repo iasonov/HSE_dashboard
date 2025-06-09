@@ -12,13 +12,23 @@ bachelor_col_enrollments = "Конкурс"
 # основные параметры
 col_program = 'program'
 col_programs_names = "Образовательная программа"
-col_plan = 'plan_rus'
+col_plan_rus = 'plan_rus'
+col_plan_foreign = 'plan_foreign'
 col_leads = "Кол-во заявок (studyonline) с 1.10"
 col_leads_after_april = """Кол-во заявок (studyonline) с 1.04"""
+col_leads_after_april_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.04"""
 col_applications = """Регистрации в ЛК (РФ все приоритеты)"""
+col_applications_prev = """Прошлогодние Регистрации в ЛК (РФ все приоритеты)"""
 col_contracts = """Договоры (ПК) РФ"""
+col_contracts_prev =  """Прошлогодние Договоры (ПК) РФ"""
 col_payments = """Оплаты (ПК)"""
 col_enrollments = "Зачисленные (ПК)"
+col_gender_asav = "Пол"
+col_birthday = "Дата рождения"
+col_male = "male"
+col_female	= "female"
+col_ages = "ages"
+col_ages_mean = "ages_mean"
 
 
 # дополнительные и расчетные параметры
@@ -36,3 +46,11 @@ col_income_1year_hse = "Выручка за 1 год после отчислен
 col_income_all_hse   = "Выручка за весь период обучения после отчислений партнерам"
 col_leads_delta = """Общее кол-во заявок (studyonline) за 1\\2 недели"""
 col_applications_delta = """Кол-во регистраций в ЛК абитуриента за 1\\2 недели"""
+
+#asav
+col_id_asav = "Рег. номер"
+
+#dashboard unused
+col_gender = "gender"
+col_ages_bars = "ages_bars"
+

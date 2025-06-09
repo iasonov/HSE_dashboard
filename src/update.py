@@ -22,7 +22,7 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     sheet = client.open('Еженедельный отчет 2025_общий')
 
     # get the first sheet of the Spreadsheet
-    dashboard_sales = sheet.get_worksheet(0)
+    dashboard = sheet.get_worksheet(0)
 
     print("Гугл-дашборд открыт")
 
@@ -37,33 +37,36 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
             prev_applications = df_prev[col_applications]
             print("Данные о лидах с прошлого обновления считаны")
         except:
-            prev_leads        = np.array(dashboard_sales.get("J2:J42", value_render_option=ValueRenderOption.unformatted))[:,0]
-            prev_applications = np.array(dashboard_sales.get("O2:O42", value_render_option=ValueRenderOption.unformatted))[:,0]
+            prev_leads        = np.array(dashboard.get("J2:J42", value_render_option=ValueRenderOption.unformatted))[:,0]
+            prev_applications = np.array(dashboard.get("O2:O42", value_render_option=ValueRenderOption.unformatted))[:,0]
             print("Данные в " + prev_file + " на локальном диске не найдены, считаю дельту относительно гугл-дашборда")
         aggregated_data[col_leads_delta]        = aggregated_data[col_leads]        - prev_leads
         aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications
         aggregated_data[[col_leads, col_applications]].to_csv(prev_file)
         print("Сведения о лидах и регистрациях в ЛК за полнедели обновлены")
     else:
-        prev_leads_delta        = np.array(dashboard_sales.get("L2:L42", value_render_option=ValueRenderOption.unformatted))
-        prev_applications_delta = np.array(dashboard_sales.get("P2:P42", value_render_option=ValueRenderOption.unformatted))
+        prev_leads_delta        = np.array(dashboard.get("L2:L42", value_render_option=ValueRenderOption.unformatted))
+        prev_applications_delta = np.array(dashboard.get("P2:P42", value_render_option=ValueRenderOption.unformatted))
         aggregated_data[col_leads_delta]        = prev_leads_delta[:,0]
         aggregated_data[col_applications_delta] = prev_applications_delta[:,0]
         print("Данные за полнедели не обновляются")
 
-    dashboard_sales.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
+    dashboard.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
     print("Данные в гугл-дашборд записаны")
 
     # TODO replace without absolute cell indexes
-    dashboard_sales.update_acell('B43', str_time + ", " + str_date + ".2025") # 2025
+    dashboard.update_acell('B43', str_time + ", " + str_date + ".2025") # 2025
     if history_data is not None:
-        dashboard_sales.update_acell('B45', str_date + ".2024") # 2024
-        dashboard_sales.update_acell('B46', str_date + ".2023") # 2024
-        dashboard_sales.update_acell('K45', str(history_data.loc[2024, 'leads'][0]))
-        dashboard_sales.update_acell('K46', str(history_data.loc[2023, 'leads'][0]))
-        dashboard_sales.update_acell('O45', str(history_data.loc[2024, 'applications'][0]))
-        dashboard_sales.update_acell('O46', str(history_data.loc[2023, 'applications'][0]))
-        dashboard_sales.update_acell('S45', str(history_data.loc[2024, 'contracts'][0]))
-        dashboard_sales.update_acell('S46', str(history_data.loc[2023, 'contracts'][0]))
+        dashboard.update_acell('B46', str_date + ".2024") # 2024
+        dashboard.update_acell('B48', str_date + ".2023") # 2024
+        dashboard.update_acell('K46', str(history_data.loc[2024, 'leads'][0]))
+        dashboard.update_acell('K48', str(history_data.loc[2023, 'leads'][0]))
+        dashboard.update_acell('O46', str(history_data.loc[2024, 'applications']))
+        dashboard.update_acell('O48', str(history_data.loc[2023, 'applications']))
+        dashboard.update_acell('S46', str(history_data.loc[2024, 'contracts']))
+        dashboard.update_acell('S48', str(history_data.loc[2023, 'contracts']))
+        dashboard.update_acell('O45', str(history_data.loc[2025, 'applications_unique']))
+        dashboard.update_acell('O47', str(history_data.loc[2024, 'applications_unique']))
+        dashboard.update_acell('O49', str(history_data.loc[2023, 'applications_unique']))
 
     return
