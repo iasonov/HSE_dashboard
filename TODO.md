@@ -1,9 +1,12 @@
 ## Features
-[ ] gender for each program (based on applications?)
-[ ] age for each program (based on applications?)
-[ ] archive data (leads, applications, contracts) for each program
+[x] gender for each program (based on applications?)
+[x] age for each program (based on applications?)
+[x] archive data (leads, applications, contracts) for each program
 [ ] delta for 1 weeks
-[ ] add unique client's (applications column) for 2023-2025 years
+[x] add unique client's (applications column) for 2023-2025 years
+[ ] dynamics graphics
+[ ] group by manager
+[x] comparison with prev. year
 
 ## Technical debt
 [ ] move templates and data to private account
