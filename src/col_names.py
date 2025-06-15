@@ -3,25 +3,45 @@ master_col_contracts = "Договор на обучение" # не пусто
 master_col_payments = "Оплата первого периода" # "Оплачено"
 master_col_enrollments = "Приказ о зачислении" # не пусто
 
+master_foreign_col_programs_1 = "Программа 1 приоритета"
+master_foreign_col_programs_2 = "Программа 2 приоритета"
+master_foreign_col_faculty_1 = "Факультет первой программы"
+master_foreign_col_faculty_2 = "Факультет второй программы"
+master_foreign_col_program_final = "Рекомендован на конкурс"
+master_foreign_col_faculty_final = "Факультет конкурса, на который рекомендован"
+master_foreign_col_contracts = "Договор подписан"
+master_foreign_col_payments = "Договор оплачен"
+master_foreign_col_enrollments = None #"Приказ о зачислении" # пока не ясно, откуда брать этот столбец
+
+bitrix_col_date = "Дата создания"
+
 bachelor_col_programs = "Конкурсная группа"
 # bachelor_col_contracts = "Образовательная программа"
 bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
 bachelor_col_enrollments = "Конкурс"
 
+# не название столбца, а название для лидов с разводящего ленда
+main_studyonline = "Общий лендинг"
 
 # основные параметры
 col_program = 'program'
+col_program_bitrix = "program_bitrix"
 col_programs_names = "Образовательная программа"
 col_plan_rus = 'plan_rus'
 col_plan_foreign = 'plan_foreign'
 col_leads = "Кол-во заявок (studyonline) с 1.10"
 col_leads_after_april = """Кол-во заявок (studyonline) с 1.04"""
+col_leads_after_april_by_week = """Кол-во заявок (studyonline) с 1.04 по неделям"""
 col_leads_after_april_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.04"""
 col_applications = """Регистрации в ЛК (РФ все приоритеты)"""
 col_applications_prev = """Прошлогодние Регистрации в ЛК (РФ все приоритеты)"""
 col_contracts = """Договоры (ПК) РФ"""
 col_contracts_prev =  """Прошлогодние Договоры (ПК) РФ"""
 col_payments = """Оплаты (ПК)"""
+col_applications_foreign = """Регистрации в ЛК иностранцы"""
+col_contracts_foreign = """Договоры иностранцы"""
+col_payments_foreign = """Оплаты иностранцы"""
+col_enrollments_foreign = """Зачисленные иностранцы"""
 col_enrollments = "Зачисленные (ПК)"
 col_gender_asav = "Пол"
 col_birthday = "Дата рождения"
@@ -39,7 +59,9 @@ col_needed_applications = """Необходимо регистраций в ЛК
 col_conversion_applications_to_contracts = """Конверсия ЛК -> договор"""
 col_conversion_contracts_to_payments = """Конверсия договор -> оплата"""
 col_conversion_contracts_to_enrollments = """Конверсия договор -> зачисление"""
-col_payments_div_plan = """Выполнение плана %"""
+col_payments_div_plan_rus = """Выполнение плана % РФ"""
+col_payments_div_plan_foreign = """Выполнение плана % иностранцы"""
+
 col_income_1year     = "Выручка за 1 год, млн.руб."
 col_income_all       = "Выручка за весь период обучения"
 col_income_1year_hse = "Выручка за 1 год после отчислений партнерам"

@@ -15,3 +15,4 @@
 [x] change bachelor of design fee to 420 and ПРВИС to 500
 [x] choose "ЭКАНБАК" vs. "БАКЭКАН" and put it into database
 [x] test after leads 2023 upload added
+[ ] solve all trunk warnings

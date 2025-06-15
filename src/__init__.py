@@ -11,8 +11,8 @@ df_current.to_excel(file_name)
 
 # df_history = process_history_files()
 
-update_deltas = True # each monday and thursday
-update_google_dashboard = True
+update_deltas = False # each monday and thursday
+update_google_dashboard = False
 
 if update_google_dashboard:
   update_sheet(pd.read_excel(file_name), update_deltas, df_history)
