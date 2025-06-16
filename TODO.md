@@ -18,3 +18,4 @@
 [x] choose "ЭКАНБАК" vs. "БАКЭКАН" and put it into database
 [x] test after leads 2023 upload added
 [ ] solve all trunk warnings
+[ ] solve all python warnings

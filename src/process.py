@@ -148,44 +148,33 @@ def process_foreign_programs(df, programs_names):
     # df[col_program] = df[master_foreign_col_programs_1] + df[master_foreign_col_programs_2]
     return df
 
-def process_bitrix_by_week(df, col_program, col_date=bitrix_col_date):
-    YEAR = 2025
-    # programs = df[col_program]
-    # df[col]
-    # for program in programs:
+def process_by_week(df, col_program, col_date):
+    df[col_date] = pd.to_datetime(df[col_date])
 
-    df[col_date] = pd.to_datetime(df[col_date]) # - pd.to_timedelta(7, unit='d')
-    df['week_date'] = datetime.fromisocalendar(YEAR, df[col_date].dt.isocalendar().week, 1)
+    # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
+    df['week_start'] = df[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
 
-    # df_bitrix_after_april = df_bitrix_after_april.groupby([col_program, pd.Grouper(key=bitrix_col_date, freq='W-MON')])[col_program] \
-    #     .count() \
-    #     .reset_index() \
-    #     .sort_values(bitrix_col_date)
-    # print (df_bitrix_after_april)
+    # Группируем по программе и неделе
+    weekly_counts = df.groupby([col_program, 'week_start']).size().reset_index(name='count')
 
-    bins = [i for i in range(min(df['week_date']), max(df['week_date']) + timedelta(days=1), timedelta(days=7))] #.append(float('inf'))
+    # Получим все уникальные программы и все недели
+    all_programs = weekly_counts[col_program].unique()
+    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=4, day=1, hour=0, minute=0, second=0),
+                            end=weekly_counts['week_start'].max(),
+                            freq='W-TUE')  # каждую неделю по вторникам TODO: check различия MON & TUE
 
-    # [0, 17, 23, 29, 35, 41, 47, float('inf')]
-    # TODO repair labels
-    labels = [i.strftime("%d %b") for i in bins]#.append("Current week")
-    #bins.append(float('inf'))
+    # Создаем полную сетку: программа × неделя
+    full_index = pd.MultiIndex.from_product([all_programs, all_weeks], names=[col_program, 'week_start'])
+    full_df = pd.DataFrame(index=full_index).reset_index()
 
-    # labels = ['0-17', '18-23', '24-29', '30-35', '36-41', '42-47', '48+']
+    # Объединяем с посчитанными заявками
+    merged = pd.merge(full_df, weekly_counts, how='left', on=[col_program, 'week_start'])
+    merged['count'] = merged['count'].fillna(0).astype(int)
 
-
-    def categorize_dates(dates_column, bins, labels):
-        # Используем pd.cut для разбиения на интервалы
-        categories = pd.cut(dates_column, bins=bins, labels=labels, right=True, include_lowest=True)
-
-        # Считаем количество в каждом диапазоне
-        counts = categories.value_counts().sort_index()
-
-        return np.array2string(counts.values, separator=";")[1:-1]
-
-    # master_years_bars = df_master.groupby(master_col_programs)[col_birthday].apply(categorize_ages)
+    # Группируем по программе и объединяем значения в строку через ";"
+    return merged.groupby(col_program)['count'].apply(lambda x: ';'.join(map(str, x))).reset_index()
 
 
-    return df.groupby(col_program)[col_date].apply((lambda x: categorize_dates(x, bins, labels)))
 
 def process_current_files():
 
@@ -511,7 +500,10 @@ def process_current_files():
     df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_program_bitrix: main_studyonline, col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_leads_after_april_prev: main_leads_after_april_prev}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
 
-    df[col_leads_after_april_by_week] = process_bitrix_by_week(df_bitrix_after_april, col_programs_names, bitrix_col_date)
+    # считываем тренды по неделям (заявки и регистрации)
+    df_leads_by_week = process_by_week(df_bitrix_after_april, col_programs_names, bitrix_col_date)
+    df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week.index, 'values':df_leads_by_week.values}) # TODO START
+    df[col_leads_after_april_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_after_april_by_week)
 
     df[col_leads_after_april_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_after_april_prev)
     df = df.drop(columns=['program_bitrix'])

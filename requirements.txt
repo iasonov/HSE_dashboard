@@ -1,1 +1,1 @@
-pandas gspread oauth2client # Add project dependencies here
+pandas gspread oauth2client pandas openpyxl xlrd lxml numpy # Add project dependencies here
