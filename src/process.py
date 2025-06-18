@@ -148,14 +148,14 @@ def process_foreign_programs(df, programs_names):
     # df[col_program] = df[master_foreign_col_programs_1] + df[master_foreign_col_programs_2]
     return df
 
-def process_by_week(df, col_program, col_date):
+def process_by_week(df, col_program, col_date, col_values='count'):
     df[col_date] = pd.to_datetime(df[col_date])
 
     # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
     df['week_start'] = df[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
 
     # Группируем по программе и неделе
-    weekly_counts = df.groupby([col_program, 'week_start']).size().reset_index(name='count')
+    weekly_counts = df.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
 
     # Получим все уникальные программы и все недели
     all_programs = weekly_counts[col_program].unique()
@@ -169,10 +169,10 @@ def process_by_week(df, col_program, col_date):
 
     # Объединяем с посчитанными заявками
     merged = pd.merge(full_df, weekly_counts, how='left', on=[col_program, 'week_start'])
-    merged['count'] = merged['count'].fillna(0).astype(int)
+    merged[col_values] = merged[col_values].fillna(0).astype(int)
 
     # Группируем по программе и объединяем значения в строку через ";"
-    return merged.groupby(col_program)['count'].apply(lambda x: ';'.join(map(str, x))).reset_index()
+    return merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index()
 
 
 
@@ -392,7 +392,7 @@ def process_current_files():
     # АСАВ
     try:
         print("Начинаем считывать данные от АСАВ")
-        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:DT") #sheet_name=master_file_sheet_name,
+        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:DW") #sheet_name=master_file_sheet_name,
         print("Данные от АСАВ считаны")
     except:
         print("Ошибка в обработке АСАВ, возможно нет выгрузки из АСАВ или она называется не " + master_file)
@@ -486,6 +486,12 @@ def process_current_files():
     df_applications_prev = pd.DataFrame({col_program:df_applications_prev.index, 'values':df_applications_prev.values})
     df_master_dashboard[col_applications_prev] = insert_values(df_master_dashboard, df_applications_prev, col_program, col_applications_prev)
 
+    # считаем регистрации по неделям
+    df_applications_by_week = process_by_week(df_master, master_col_programs, "Unnamed: 126")
+    df_applications_by_week = pd.DataFrame({col_program:df_applications_by_week[master_col_programs], 'values':df_applications_by_week['count']})
+    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_applications_by_week, col_program, col_applications_by_week)
+
+
     df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
     df_master_dashboard[col_contracts_prev] = insert_values(df_master_dashboard, df_contracts_prev, col_program, col_contracts_prev)
 
@@ -500,9 +506,9 @@ def process_current_files():
     df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_program_bitrix: main_studyonline, col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_leads_after_april_prev: main_leads_after_april_prev}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
 
-    # считываем тренды по неделям (заявки и регистрации)
+    # считываем тренды по неделям (заявки)
     df_leads_by_week = process_by_week(df_bitrix_after_april, col_programs_names, bitrix_col_date)
-    df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week.index, 'values':df_leads_by_week.values}) # TODO START
+    df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week[col_programs_names], 'values':df_leads_by_week['count']})
     df[col_leads_after_april_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_after_april_by_week)
 
     df[col_leads_after_april_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_after_april_prev)

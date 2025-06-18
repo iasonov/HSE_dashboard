@@ -35,6 +35,7 @@ col_leads_after_april_by_week = """Кол-во заявок (studyonline) с 1.0
 col_leads_after_april_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.04"""
 col_applications = """Регистрации в ЛК (РФ все приоритеты)"""
 col_applications_prev = """Прошлогодние Регистрации в ЛК (РФ все приоритеты)"""
+col_applications_by_week = """Регистрации в ЛК (РФ все приоритеты) по неделям"""
 col_contracts = """Договоры (ПК) РФ"""
 col_contracts_prev =  """Прошлогодние Договоры (ПК) РФ"""
 col_payments = """Оплаты (ПК)"""
