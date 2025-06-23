@@ -4,10 +4,11 @@
 [x] archive data (leads, applications, contracts) for each program
 [ ] delta for 1 weeks
 [x] add unique client's (applications column) for 2023-2025 years
-[ ] dynamics graphics
+[x] dynamics graphics
 [ ] group by manager
 [x] comparison with prev. year
 [x] sparkline for all data
+[ ] exclude offline finance master
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations
