@@ -8,7 +8,8 @@
 [ ] group by manager
 [x] comparison with prev. year
 [x] sparkline for all data
-[ ] exclude offline finance master
+[x] exclude offline finance master
+[ ] prev year for bachelors
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations

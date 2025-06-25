@@ -15,6 +15,7 @@ master_foreign_col_enrollments = None #"Приказ о зачислении" # 
 
 bitrix_col_date = "Дата создания"
 
+bachelor_col_date = "Дата"
 bachelor_col_programs = "Конкурсная группа"
 # bachelor_col_contracts = "Образовательная программа"
 bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"

@@ -399,7 +399,8 @@ def process_current_files():
         print("Ошибка в обработке АСАВ, возможно нет выгрузки из АСАВ или она называется не " + master_file)
         df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
-    # убираем офлайн-психов TODO - проверить международный бизнес и другие программы с треками
+    # убираем офлайн-треки и финансы из СПб
+    df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Санкт-Петербург")) & (df_master[master_col_programs] == "Финансы")) ]
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
     df_master = df_master.dropna(subset=[col_birthday])
@@ -442,26 +443,27 @@ def process_current_files():
 
 
     # АИС ПК
+    # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
     print("Начинаем считывать данные от АИС ПК")
     try:
-        df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file, usecols="I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file, usecols="A,B,I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_applications = df_bachelor_app.groupby(bachelor_col_programs)[bachelor_col_programs].count() #.rename("program")#.sort_values(ascending=False)
         bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
         df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
+
+        # считаем регистрации по неделям
+        df_bachelor_applications_by_week = process_by_week(df_bachelor_app, bachelor_col_programs, bachelor_col_date)
+        df_bachelor_applications_by_week = pd.DataFrame({col_program:df_bachelor_applications_by_week[bachelor_col_programs], 'values':df_bachelor_applications_by_week['count']})
+        df_bachelor_dashboard[col_applications_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_applications_by_week, col_program, col_applications_by_week)
 
     except pd.errors.EmptyDataError:
         print(bachelor_app_file + ' is empty')
     except FileNotFoundError:
         print(bachelor_app_file + ' file not found')
 
+
     try:
-
-        df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file, usecols="H:T") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
-        df_bachelor_enr = pd.read_excel(relative_folder + bachelor_enr_file, usecols="E:H") #, sheet_name=master_file_sheet_name, skiprows=1)
-        print("Данные от АИС ПК считаны")
-
-         # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
-
+        df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file, usecols="J:V") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_contracts = df_bachelor_con.groupby(col_programs_names)[col_programs_names].count()
         bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
         bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
@@ -472,13 +474,22 @@ def process_current_files():
         bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
         df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
 
+    except pd.errors.EmptyDataError:
+        print(bachelor_con_file + ' is empty')
+    except FileNotFoundError:
+        print(bachelor_con_file + ' file not found')
+
+
+    try:
+        df_bachelor_enr = pd.read_excel(relative_folder + bachelor_enr_file, usecols="E:H") #, sheet_name=master_file_sheet_name, skiprows=1)
+        print("Данные от АИС ПК считаны")
+
         bachelor_enrollments = df_bachelor_enr.groupby(bachelor_col_enrollments)[bachelor_col_enrollments].count()
         bachelor_enrollments = pd.DataFrame({col_program:bachelor_enrollments.index, 'values':bachelor_enrollments.values})
         df_bachelor_dashboard[col_enrollments] = insert_values(df_bachelor_dashboard, bachelor_enrollments, col_program, col_enrollments)
 
     except:
         print("Ошибка в обработке АИС ПК, возможно нет выгрузки из АИС ПК или она называется не:\n")
-        print(bachelor_con_file)
         print(bachelor_enr_file)
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
@@ -488,9 +499,9 @@ def process_current_files():
     df_master_dashboard[col_applications_prev] = insert_values(df_master_dashboard, df_applications_prev, col_program, col_applications_prev)
 
     # считаем регистрации по неделям
-    df_applications_by_week = process_by_week(df_master, master_col_programs, df_master.columns[-1])
-    df_applications_by_week = pd.DataFrame({col_program:df_applications_by_week[master_col_programs], 'values':df_applications_by_week['count']})
-    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_applications_by_week, col_program, col_applications_by_week)
+    df_master_applications_by_week = process_by_week(df_master, master_col_programs, df_master.columns[-1])
+    df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
+    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
 
 
     df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
