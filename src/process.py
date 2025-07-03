@@ -178,7 +178,7 @@ def process_by_week(df, col_program, col_date, col_values='count'):
 
 def process_current_files():
 
-    NEEDED_APPLICATIONS_RATIO = 30 / 100 #percents
+    NEEDED_APPLICATIONS_RATIO = 45 / 100 #percents
 
 
     # папки и файлы для загрузки

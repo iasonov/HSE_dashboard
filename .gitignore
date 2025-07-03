@@ -5,3 +5,8 @@
 data/
 __pycache__/
 dashboard*.xlsx
+templates/asav_2023.xlsx
+templates/asav_2024.xlsx
+templates/bitrix_2024-04-01_2024-09-15.xlsx
+templates/bitrix_before_april_╨┤╨╗╤Å_╤ü╨▓╨╡╤Ç╨║╨╕.xlsx
+templates/prev_data_*

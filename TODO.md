@@ -10,6 +10,8 @@
 [x] sparkline for all data
 [x] exclude offline finance master
 [ ] prev year for bachelors
+[ ] leads by channel
+[ ] labels for bac_contracts check
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations
