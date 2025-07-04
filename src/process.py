@@ -149,7 +149,7 @@ def process_foreign_programs(df, programs_names):
     return df
 
 def process_by_week(df, col_program, col_date, col_values='count'):
-    df[col_date] = pd.to_datetime(df[col_date])
+    df[col_date] = pd.to_datetime(df[col_date], format='%d.%m.%Y %H:%M:%S')
 
     # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
     df['week_start'] = df[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
@@ -178,7 +178,7 @@ def process_by_week(df, col_program, col_date, col_values='count'):
 
 def process_current_files():
 
-    NEEDED_APPLICATIONS_RATIO = 30 / 100 #percents
+    NEEDED_APPLICATIONS_RATIO = 45 / 100 #percents
 
 
     # папки и файлы для загрузки
@@ -446,7 +446,7 @@ def process_current_files():
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
     print("Начинаем считывать данные от АИС ПК")
     try:
-        df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file, usecols="A,B,I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file) #, usecols="A,B,I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_applications = df_bachelor_app.groupby(bachelor_col_programs)[bachelor_col_programs].count() #.rename("program")#.sort_values(ascending=False)
         bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
         df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
