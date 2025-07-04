@@ -59,6 +59,8 @@ def process_history_files():
     # master_contracts_file_2024    = "asav_2024_contracts.csv"
     asav_file_2023                = "asav_2023.xlsx"
     asav_file_2024                = "asav_2024.xlsx"
+    bachelor_file_2024            = "bachelor_2024.xls"
+
 
     # TODO вписать сводные расчеты
 
@@ -75,6 +77,9 @@ def process_history_files():
         leads_dates_2024_by_program['leads_dates'] = pd.to_datetime(leads_dates_2024_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2024_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
 
+        bachelor_2024 = pd.read_excel(templates_folder + bachelor_file_2024) #, usecols='A:H,J:AB')
+        bachelor_2024['applications_dates'] = pd.to_datetime(bachelor_2024['applications_dates'], errors='coerce', format='%d.%m.%Y')
+        bachelor_2024['contracts_dates']    = pd.to_datetime(bachelor_2024['contracts_dates'],    errors='coerce', format='%d.%m.%Y')
 
         asav_2023 = pd.read_excel(templates_folder + asav_file_2023, parse_dates=[0, 1], skiprows=1, date_format="%d.%m.%Y")
         asav_2023['applications_dates'] = pd.to_datetime(asav_2023['applications_dates'], format='%Y-%m-%d 00:00:00')
@@ -95,15 +100,16 @@ def process_history_files():
         print(bitrix_file_2024)
         print(asav_file_2023)
         print(asav_file_2024)
+        print(bachelor_2024)
 
 
     now = datetime.now()
-    delta_now_2023 = timedelta(days=365+366) # TODO check both deltas
-    delta_now_2024 = timedelta(days=366)
+    delta_now_2023 = timedelta(days=365+366)
+    delta_now_2024 = timedelta(days=365)
 
     asav_2023_no_duplicates = asav_2023.drop_duplicates(subset=[col_id_asav])
     asav_2024_no_duplicates = asav_2024.drop_duplicates(subset=[col_id_asav])
-
+    bachelor_2024_no_duplicates = bachelor_2024.drop_duplicates(subset=[col_id_bachelor])
 
     df_pivot = pd.DataFrame.from_dict({'leads' :
                                 {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
@@ -116,17 +122,20 @@ def process_history_files():
                                 #  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 <= now).count()},
                                 'applications' :
                                 {2023: asav_2023[asav_2023['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
-                                 2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()},
+                                 2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()},
                                 'contracts' :
                                 {2023: asav_2023[asav_2023['contracts_dates'] + delta_now_2023 <= now]['contracts_dates'].count(),
-                                 2024: asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count()},
+                                 2024: asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count() + bachelor_2024[bachelor_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count()},
                                 'applications_unique' :
                                 {2023: asav_2023_no_duplicates[asav_2023_no_duplicates['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
-                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()}
+                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024_no_duplicates[bachelor_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()}
                                 }) #columns=['year', 'applications', 'contracts']
     df_leads_prev        = leads_dates_2024_by_program[leads_dates_2024_by_program['leads_dates'] + delta_now_2024 <= now].groupby(col_programs_names)[col_programs_names].count()
-    df_applications_prev = asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count()
-    df_contracts_prev    = asav_2024[asav_2024['contracts_dates']    + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count()
+    df_applications_prev = pd.concat([asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count(),
+                                     bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
+    df_contracts_prev    = pd.concat([asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count(),
+                                     bachelor_2024[bachelor_2024['contracts_dates'] + delta_now_2024 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
+
 
     print("Исторические данные считаны")
     return df_pivot, df_leads_prev, df_applications_prev, df_contracts_prev
@@ -392,7 +401,7 @@ def process_current_files():
     # АСАВ
     try:
         print("Начинаем считывать данные от АСАВ")
-        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:AB, CY:DW") #sheet_name=master_file_sheet_name,
+        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:AB, CY:DW, DZ") #sheet_name=master_file_sheet_name,
         df_master = df_master.dropna(how='all', ignore_index=True)
         print("Данные от АСАВ считаны")
     except:
@@ -405,6 +414,7 @@ def process_current_files():
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
     df_master = df_master.dropna(subset=[col_birthday])
 
+    df_master = df_master.rename(columns={df_master.columns[-1]: 'gosuslugi', df_master.columns[-2]: 'applications_dates'})
 
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
     master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
@@ -493,19 +503,27 @@ def process_current_files():
         print(bachelor_enr_file)
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
+    # расчет данных по госуслугам
+    df_master_gosuslugi = df_master[df_master['gosuslugi'] == 'Администратор БД (SYSDBA)'].groupby(master_col_programs)['gosuslugi'].count()
+    df_master_gosuslugi = pd.DataFrame({col_program:df_master_gosuslugi.index, 'values':df_master_gosuslugi.values})
+    df_master_dashboard[col_applications_gosuslugi] = insert_values(df_master_dashboard, df_master_gosuslugi, col_program, col_applications_gosuslugi)
+
+    df_bachelor_gosuslugi = df_bachelor_app[df_bachelor_app[bachelor_col_gosuslugi] == 'ЕПГУ'].groupby(bachelor_col_programs)[bachelor_col_gosuslugi].count()
+    df_bachelor_gosuslugi = pd.DataFrame({col_program:df_bachelor_gosuslugi.index, 'values':df_bachelor_gosuslugi.values})
+    df_bachelor_dashboard[col_applications_gosuslugi] = insert_values(df_bachelor_dashboard, df_bachelor_gosuslugi, col_program, col_applications_gosuslugi)
+
+
+
+
+    # расчет данных прошлых лет
     df_history, df_leads_prev, df_applications_prev, df_contracts_prev = process_history_files() # Only for master for now
 
-    df_applications_prev = pd.DataFrame({col_program:df_applications_prev.index, 'values':df_applications_prev.values})
-    df_master_dashboard[col_applications_prev] = insert_values(df_master_dashboard, df_applications_prev, col_program, col_applications_prev)
 
     # считаем регистрации по неделям
-    df_master_applications_by_week = process_by_week(df_master, master_col_programs, df_master.columns[-1])
+    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates')
     df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
     df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
 
-
-    df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
-    df_master_dashboard[col_contracts_prev] = insert_values(df_master_dashboard, df_contracts_prev, col_program, col_contracts_prev)
 
     asav_2025_no_duplicates = df_master.drop_duplicates(subset=['Unnamed: 0']) # TODO rename to col_id_asav
 
@@ -517,6 +535,13 @@ def process_current_files():
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
     df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_program_bitrix: main_studyonline, col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_leads_after_april_prev: main_leads_after_april_prev}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
+
+
+    df_applications_prev = pd.DataFrame({col_program:df_applications_prev.index, 'values':df_applications_prev.values})
+    df[col_applications_prev] = insert_values(df, df_applications_prev, col_program, col_applications_prev)
+
+    df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
+    df[col_contracts_prev] = insert_values(df, df_contracts_prev, col_program, col_contracts_prev)
 
     # считываем тренды по неделям (заявки)
     df_leads_by_week = process_by_week(df_bitrix_after_april, col_programs_names, bitrix_col_date)

@@ -12,6 +12,7 @@
 [ ] prev year for bachelors
 [ ] leads by channel
 [ ] labels for bac_contracts check
+[ ] bar for each program of gosuslugi
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations
