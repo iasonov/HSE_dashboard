@@ -9,10 +9,11 @@
 [x] comparison with prev. year
 [x] sparkline for all data
 [x] exclude offline finance master
-[ ] prev year for bachelors
+[x] prev year for bachelors
 [ ] leads by channel
 [ ] labels for bac_contracts check
-[ ] bar for each program of gosuslugi
+[x] bar for each program of gosuslugi
+[ ] check unique applications for bachelors
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations

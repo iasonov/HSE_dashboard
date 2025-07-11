@@ -9,7 +9,7 @@ file_name = "data/dashboards/dashboard" + str + ".xlsx"
 df_current, df_history = process_current_files()
 df_current.to_excel(file_name)
 
-update_deltas = False # each monday and thursday
+update_deltas = True # each monday and thursday
 update_google_dashboard = True
 
 if update_google_dashboard:

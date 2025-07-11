@@ -207,8 +207,8 @@ def process_current_files():
     master_file_foreign = "asav_foreign.xlsx"
     # master_file_sheet_name = "только онлайн"
 
-    bachelor_app_file = "bac_applications.xls"
-    bachelor_con_file = "bac_contracts.xls"
+    bachelor_app_file = "bac_applications.xlsx"
+    bachelor_con_file = "bac_contracts.xlsx"
     bachelor_enr_file = "bac_enrolled.xlsx"
 
     # считывание файлов
