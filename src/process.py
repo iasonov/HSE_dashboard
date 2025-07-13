@@ -157,14 +157,15 @@ def process_foreign_programs(df, programs_names):
     # df[col_program] = df[master_foreign_col_programs_1] + df[master_foreign_col_programs_2]
     return df
 
-def process_by_week(df, col_program, col_date, col_values='count'):
-    df[col_date] = pd.to_datetime(df[col_date], format='%d.%m.%Y %H:%M:%S')
+def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m.%Y %H:%M:%S'):
+    df_temp = df.copy().dropna(subset=[col_date])
+    df_temp[col_date] = pd.to_datetime(df_temp[col_date], format=format)
 
     # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
-    df['week_start'] = df[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
+    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
 
     # Группируем по программе и неделе
-    weekly_counts = df.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
+    weekly_counts = df_temp.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
 
     # Получим все уникальные программы и все недели
     all_programs = weekly_counts[col_program].unique()
@@ -185,7 +186,13 @@ def process_by_week(df, col_program, col_date, col_values='count'):
 
 
 
-def process_current_files():
+def process_current_files(debug=None):
+
+    if debug is None:
+        import warnings
+        # Suppress the FutureWarning
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+        #pd.set_option('future.no_silent_downcasting', True)
 
     NEEDED_APPLICATIONS_RATIO = 45 / 100 #percents
 
@@ -452,6 +459,27 @@ def process_current_files():
     df_master_dashboard[col_ages_mean] = insert_values(df_master_dashboard, master_years_mean, col_program, col_ages_mean)
 
 
+
+    print("Считаем регистрации и договоры по неделям")
+    # считаем регистрации и договоры по неделям
+    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates')
+    df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
+    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
+
+    df_master['contracts_dates'] = df_master[master_col_contracts].str[-10:]
+    df_master_contracts_by_week = process_by_week(df_master, master_col_programs, 'contracts_dates', 'count', '%Y-%m-%d')
+    df_master_contracts_by_week = pd.DataFrame({col_program:df_master_contracts_by_week[master_col_programs], 'values':df_master_contracts_by_week['count']})
+    df_master_dashboard[col_contracts_by_week] = insert_values(df_master_dashboard, df_master_contracts_by_week, col_program, col_contracts_by_week)
+
+
+        # # считаем договоры по неделям
+        # df_bachelor_contracts_by_week = process_by_week(df_bachelor_con, bachelor_col_programs_contracts, bachelor_col_date_contract, 'count', '%d.%m.%Y')
+        # df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.groupby(bachelor_col_programs_contracts)['count'].sum()
+        # df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.rename(index=bachelor_dict)
+        # df_bachelor_contracts_by_week = pd.DataFrame({col_program:df_bachelor_contracts_by_week.index, 'values':df_bachelor_contracts_by_week.values})
+        # df_bachelor_dashboard[col_contracts_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_contracts_by_week, col_program, col_contracts_by_week)
+
+
     # АИС ПК
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
     print("Начинаем считывать данные от АИС ПК")
@@ -473,7 +501,7 @@ def process_current_files():
 
 
     try:
-        df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file, usecols="J:V") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file) #, usecols="J:V") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_contracts = df_bachelor_con.groupby(col_programs_names)[col_programs_names].count()
         bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
         bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
@@ -483,6 +511,13 @@ def process_current_files():
         bachelor_payments = bachelor_payments.rename(index=bachelor_dict)
         bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
         df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
+
+        # считаем договоры по неделям
+        df_bachelor_contracts_by_week = process_by_week(df_bachelor_con, bachelor_col_programs_contracts, bachelor_col_date_contract, 'count', '%d.%m.%Y')
+        df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.groupby(bachelor_col_programs_contracts)['count'].sum()
+        df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.rename(index=bachelor_dict)
+        df_bachelor_contracts_by_week = pd.DataFrame({col_program:df_bachelor_contracts_by_week.index, 'values':df_bachelor_contracts_by_week.values})
+        df_bachelor_dashboard[col_contracts_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_contracts_by_week, col_program, col_contracts_by_week)
 
     except pd.errors.EmptyDataError:
         print(bachelor_con_file + ' is empty')
@@ -517,12 +552,6 @@ def process_current_files():
 
     # расчет данных прошлых лет
     df_history, df_leads_prev, df_applications_prev, df_contracts_prev = process_history_files() # Only for master for now
-
-
-    # считаем регистрации по неделям
-    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates')
-    df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
-    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
 
 
     asav_2025_no_duplicates = df_master.drop_duplicates(subset=['Unnamed: 0']) # TODO rename to col_id_asav
