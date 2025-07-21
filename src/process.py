@@ -257,16 +257,26 @@ def process_current_files(debug=None):
         df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса считаны")
         # pd.read_excel(relative_folder + bitrix_file)
-    except:
+    except Exception as e:
+        print(e)
         try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
             print("Начинаем считывать данные от Битрикса в xls-формате")
             df_bitrix_after_april = pd.read_excel(relative_folder + bitrix_file, header=0)
             df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
             print("Данные от Битрикса считаны")
             # pd.read_excel(relative_folder + bitrix_file)
-        except:
-            print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
-            df_bitrix_after_april = pd.DataFrame()
+        except Exception as e:
+            print(e)
+            try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
+                print("Начинаем считывать данные от Битрикса в xlsx-формате")
+                df_bitrix_after_april = pd.read_excel(relative_folder + bitrix_file + 'x', header=0)
+                df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
+                print("Данные от Битрикса считаны")
+                # pd.read_excel(relative_folder + bitrix_file)
+            except Exception as e:
+                print(e)
+                print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
+                df_bitrix_after_april = pd.DataFrame()
 
 
 
@@ -462,10 +472,9 @@ def process_current_files(debug=None):
 
     print("Считаем регистрации и договоры по неделям")
     # считаем регистрации и договоры по неделям
-    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates')
+    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates', 'count', '%d.%m.%Y')
     df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
     df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
-
     df_master['contracts_dates'] = df_master[master_col_contracts].str[-10:]
     df_master_contracts_by_week = process_by_week(df_master, master_col_programs, 'contracts_dates', 'count', '%Y-%m-%d')
     df_master_contracts_by_week = pd.DataFrame({col_program:df_master_contracts_by_week[master_col_programs], 'values':df_master_contracts_by_week['count']})

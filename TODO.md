@@ -14,6 +14,7 @@
 [ ] labels for bac_contracts check
 [x] bar for each program of gosuslugi
 [ ] check unique applications for bachelors
+[ ] check unique applications for masters (filter online programs)
 
 ## Technical debt
 [ ] check col_conversion_contracts_to_enrollments calculations
