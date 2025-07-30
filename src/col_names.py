@@ -2,6 +2,7 @@ master_col_programs = "Конкурс в магистратуру" #назван
 master_col_contracts = "Договор на обучение" # не пусто
 master_col_payments = "Оплата первого периода" # "Оплачено"
 master_col_enrollments = "Приказ о зачислении" # не пусто
+master_col_reg_number = "Код в ИС-ПРО" # для удаления дублей
 
 
 master_foreign_col_programs_1 = "Программа 1 приоритета"
@@ -23,6 +24,7 @@ bachelor_col_programs_contracts = "Образовательная програм
 bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
 bachelor_col_enrollments = "Конкурс"
 bachelor_col_gosuslugi = "Источник данных" # ЕПГУ - госуслуги
+bachelor_col_reg_number = "Регистрационный номер" # для подсчета уников
 
 bachelor_dict = {
     'Глобальные цифровые коммуникации (онлайн)'                        :'Глобальные цифровые коммуникации - онлайн (О К)'        ,

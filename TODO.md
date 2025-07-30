@@ -2,7 +2,7 @@
 [x] gender for each program (based on applications?)
 [x] age for each program (based on applications?)
 [x] archive data (leads, applications, contracts) for each program
-[ ] delta for 1 weeks
+--- delta for 1 weeks
 [x] add unique client's (applications column) for 2023-2025 years
 [x] dynamics graphics
 [ ] group by manager
@@ -15,8 +15,10 @@
 [x] bar for each program of gosuslugi
 [ ] check unique applications for bachelors
 [ ] check unique applications for masters (filter online programs)
+[ ] trends from monday
 
 ## Technical debt
+[ ] filter asav to online programs only
 [ ] check col_conversion_contracts_to_enrollments calculations
 [ ] deltas has mistakes
 [ ] move templates and data to private account
@@ -26,3 +28,4 @@
 [x] test after leads 2023 upload added
 [ ] solve all trunk warnings
 [ ] solve all python warnings
+

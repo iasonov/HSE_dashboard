@@ -1,3 +1,4 @@
+import glob
 import pandas as pd
 import numpy as np
 from col_names import *
@@ -162,16 +163,16 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     df_temp[col_date] = pd.to_datetime(df_temp[col_date], format=format)
 
     # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
-    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-MON').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
+    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
 
     # Группируем по программе и неделе
     weekly_counts = df_temp.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
 
     # Получим все уникальные программы и все недели
     all_programs = weekly_counts[col_program].unique()
-    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=4, day=1, hour=0, minute=0, second=0),
+    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=4, day=7, hour=0, minute=0, second=0),
                             end=weekly_counts['week_start'].max(),
-                            freq='W-TUE')  # каждую неделю по вторникам TODO: check различия MON & TUE
+                            freq='W-MON')  # каждую неделю по вторникам TODO: check различия MON & TUE
 
     # Создаем полную сетку: программа × неделя
     full_index = pd.MultiIndex.from_product([all_programs, all_weeks], names=[col_program, 'week_start'])
@@ -184,6 +185,12 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     # Группируем по программе и объединяем значения в строку через ";"
     return merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index()
 
+def find_first_file(mask: str, default: str, folder: str = "") -> str:
+    file_list = glob.glob(folder + mask)
+    if len(file_list) > 0:
+        return file_list[0]
+    else:
+        return folder + default
 
 
 def process_current_files(debug=None):
@@ -196,7 +203,6 @@ def process_current_files(debug=None):
 
     NEEDED_APPLICATIONS_RATIO = 45 / 100 #percents
 
-
     # папки и файлы для загрузки
     relative_folder = "data/"
     templates_folder = "templates/"
@@ -206,17 +212,18 @@ def process_current_files(debug=None):
 
     # dashboard_file = "dashboard.xlsx"
 
-    bitrix_file = "bitrix.xls"
-    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.xlsx"
-    portal_file = "portal.xls"
+    bitrix_file = find_first_file('*стади*.xls*', "bitrix.xls", relative_folder)
 
-    master_file = "asav.xlsx"
-    master_file_foreign = "asav_foreign.xlsx"
+    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.xlsx"
+    portal_file = find_first_file('*порт*.xls*', "portal.xls", relative_folder)
+
+    master_file = find_first_file('*асав*.xls*', "asav.xlsx", relative_folder)
+    master_file_foreign = find_first_file('*инос*.xls*', "asav_foreign.xlsx", relative_folder)
     # master_file_sheet_name = "только онлайн"
 
-    bachelor_app_file = "bac_applications.xlsx"
-    bachelor_con_file = "bac_contracts.xlsx"
-    bachelor_enr_file = "bac_enrolled.xlsx"
+    bachelor_app_file = find_first_file('*заявл*.xls*', "bac_applications.xlsx", relative_folder)
+    bachelor_con_file = find_first_file('*дог*.xls*', "bac_contracts.xlsx", relative_folder)
+    bachelor_enr_file = find_first_file('*зач*.xls*', "bac_enrolled.xlsx", relative_folder)
 
     # считывание файлов
     try:
@@ -253,26 +260,26 @@ def process_current_files(debug=None):
 
     try:# Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Битрикса в html-формате")
-        df_bitrix_after_april = pd.read_html(relative_folder + bitrix_file, header=0)[0]
+        df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0]
         df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса считаны")
-        # pd.read_excel(relative_folder + bitrix_file)
+        # pd.read_excel(bitrix_file)
     except Exception as e:
         print(e)
         try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
             print("Начинаем считывать данные от Битрикса в xls-формате")
-            df_bitrix_after_april = pd.read_excel(relative_folder + bitrix_file, header=0)
+            df_bitrix_after_april = pd.read_excel(bitrix_file, header=0)
             df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
             print("Данные от Битрикса считаны")
-            # pd.read_excel(relative_folder + bitrix_file)
+            # pd.read_excel(bitrix_file)
         except Exception as e:
             print(e)
             try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
                 print("Начинаем считывать данные от Битрикса в xlsx-формате")
-                df_bitrix_after_april = pd.read_excel(relative_folder + bitrix_file + 'x', header=0)
+                df_bitrix_after_april = pd.read_excel(bitrix_file + 'x', header=0)
                 df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
                 print("Данные от Битрикса считаны")
-                # pd.read_excel(relative_folder + bitrix_file)
+                # pd.read_excel(bitrix_file)
             except Exception as e:
                 print(e)
                 print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
@@ -282,10 +289,10 @@ def process_current_files(debug=None):
 
     try:# Число лидов c портала c 1 октября по настоящее время. Почему-то это html таблица, хотя файл xls
         print("Начинаем считывать данные от Портала")
-        df_portal = pd.read_html(relative_folder + portal_file, header=0)[0]
+        df_portal = pd.read_html(portal_file, header=0)[0]
         df_portal[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Портала считаны")
-        # pd.read_excel(relative_folder + bitrix_file)
+        # pd.read_excel(bitrix_file)
     except:
         print("Нет выгрузки заявок с Портала или она называется не " + portal_file)
         df_portal = pd.DataFrame()
@@ -295,7 +302,7 @@ def process_current_files(debug=None):
         df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april, usecols="I:N")
         df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
         print("Данные от Битрикса до 31.03 считаны")
-        # pd.read_excel(relative_folder + bitrix_file)
+        # pd.read_excel(bitrix_file)
     except:
         print("Нет выгрузки заявок из Битрикса до 31.03 или она называется не " + bitrix_file_before_april)
         df_bitrix_before_april = pd.DataFrame()
@@ -356,7 +363,7 @@ def process_current_files(debug=None):
     # АСАВ иностранцы
     try:
         print("Начинаем считывать данные от АСАВ по иностранцам")
-        df_master_foreign = pd.read_excel(relative_folder + master_file_foreign, skiprows=1, usecols="F:BJ") #sheet_name=master_file_sheet_name,
+        df_master_foreign = pd.read_excel(master_file_foreign, skiprows=1, usecols="F:BJ") #sheet_name=master_file_sheet_name,
         print("Данные от АСАВ по иностранцам считаны")
     except:
         print("Ошибка в обработке АСАВ по иностранцам, возможно нет выгрузки из АСАВ или она называется не " + master_file_foreign)
@@ -418,7 +425,7 @@ def process_current_files(debug=None):
     # АСАВ
     try:
         print("Начинаем считывать данные от АСАВ")
-        df_master = pd.read_excel(relative_folder + master_file, skiprows=1, usecols="A:AB, CY:DW, DZ") #sheet_name=master_file_sheet_name,
+        df_master = pd.read_excel(master_file, skiprows=1, usecols="A:AB, CY:DW, DZ") #sheet_name=master_file_sheet_name,
         df_master = df_master.dropna(how='all', ignore_index=True)
         print("Данные от АСАВ считаны")
     except:
@@ -493,7 +500,7 @@ def process_current_files(debug=None):
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АИС ПК
     print("Начинаем считывать данные от АИС ПК")
     try:
-        df_bachelor_app = pd.read_excel(relative_folder + bachelor_app_file) #, usecols="A,B,I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_bachelor_app = pd.read_excel(bachelor_app_file) #, usecols="A,B,I:Z") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_applications = df_bachelor_app.groupby(bachelor_col_programs)[bachelor_col_programs].count() #.rename("program")#.sort_values(ascending=False)
         bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
         df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
@@ -510,7 +517,7 @@ def process_current_files(debug=None):
 
 
     try:
-        df_bachelor_con = pd.read_excel(relative_folder + bachelor_con_file) #, usecols="J:V") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
+        df_bachelor_con = pd.read_excel(bachelor_con_file) #, usecols="J:V") #, sheet_name=master_file_sheet_name, skiprows=1, usecols="L:DT")
         bachelor_contracts = df_bachelor_con.groupby(col_programs_names)[col_programs_names].count()
         bachelor_contracts = bachelor_contracts.rename(index=bachelor_dict)
         bachelor_contracts = pd.DataFrame({col_program:bachelor_contracts.index, 'values':bachelor_contracts.values})
@@ -535,7 +542,7 @@ def process_current_files(debug=None):
 
 
     try:
-        df_bachelor_enr = pd.read_excel(relative_folder + bachelor_enr_file, usecols="E:H") #, sheet_name=master_file_sheet_name, skiprows=1)
+        df_bachelor_enr = pd.read_excel(bachelor_enr_file, usecols="E:H") #, sheet_name=master_file_sheet_name, skiprows=1)
         print("Данные от АИС ПК считаны")
 
         bachelor_enrollments = df_bachelor_enr.groupby(bachelor_col_enrollments)[bachelor_col_enrollments].count()
@@ -562,10 +569,11 @@ def process_current_files(debug=None):
     # расчет данных прошлых лет
     df_history, df_leads_prev, df_applications_prev, df_contracts_prev = process_history_files() # Only for master for now
 
+    masters_list = df_online_master_programs[col_program].unique()
+    master_2025_no_duplicates = df_master[df_master[master_col_programs].isin(masters_list)].drop_duplicates(subset=[master_col_reg_number])
+    bachelor_2025_no_duplicates = df_bachelor_app.drop_duplicates(subset=[bachelor_col_reg_number])
 
-    asav_2025_no_duplicates = df_master.drop_duplicates(subset=['Unnamed: 0']) # TODO rename to col_id_asav
-
-    df_history.loc[2025, 'applications_unique'] = asav_2025_no_duplicates[master_col_programs].count()
+    df_history.loc[2025, 'applications_unique'] = master_2025_no_duplicates[master_col_programs].count() + bachelor_2025_no_duplicates[bachelor_col_programs].count()
 
     df_leads_prev = pd.DataFrame({col_program_bitrix:df_leads_prev.index, 'values':df_leads_prev.values})
     main_leads_after_april_prev = df_leads_prev[df_leads_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
