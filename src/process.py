@@ -145,7 +145,7 @@ def process_foreign_programs(df, programs_names):
     df[master_foreign_col_programs_2] = df[master_foreign_col_programs_2].fillna("")
     is_online = df[master_foreign_col_programs_1].isin(programs_names)
     for i, row in df.iterrows():
-        if not is_online.loc[i] or row[master_foreign_col_faculty_1] == "Факультет Санкт-Петербургская школа экономики и менеджмента":
+        if not is_online.loc[i] or row[master_foreign_col_faculty_1] == "Факультет Санкт-Петербургская школа экономики и менеджмента" or row[master_foreign_col_faculty_1] == "Факультет экономики":
             df.loc[i, master_foreign_col_programs_1] = df.loc[i, master_foreign_col_programs_2]
 
     # df[master_foreign_col_programs_1] = df[master_foreign_col_programs_1] if df[master_foreign_col_programs_1].isin(programs_names) and df[master_foreign_col_faculty_1] != "Факультет Санкт-Петербургская школа экономики и менеджмента" else df[master_foreign_col_programs_2]
@@ -434,6 +434,7 @@ def process_current_files(debug=None):
 
     # убираем офлайн-треки и финансы из СПб
     df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Санкт-Петербург")) & (df_master[master_col_programs] == "Финансы")) ]
+    df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Нижний Новгород")) & (df_master[master_col_programs] == "Финансы")) ]
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
     df_master = df_master.dropna(subset=[col_birthday])
