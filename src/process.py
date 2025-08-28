@@ -225,6 +225,8 @@ def process_current_files(debug=None):
     bachelor_con_file = find_first_file('*дог*.xls*', "bac_contracts.xlsx", relative_folder)
     bachelor_enr_file = find_first_file('*зач*.xls*', "bac_enrolled.xlsx", relative_folder)
 
+    enr_file = relative_folder + "зачисленные.xlsx" #find_first_file('*зач*.xls*', "bac_enrolled.xlsx", relative_folder)
+
     # считывание файлов
     try:
         # cчитываем базу данных програм
@@ -599,6 +601,16 @@ def process_current_files(debug=None):
     df = df.drop(columns=['program_bitrix'])
 
     df.fillna(0, inplace=True)
+
+    # считаем зачисленных, если не посчитаны ранее
+    try:
+        df_enr = pd.read_excel(enr_file)
+        print("Данные по зачисленным из базы считаны")
+        df[col_enrollments] = insert_values(df, df_enr[[col_program, col_enrollments]], col_program, col_enrollments)
+        df[col_enrollments_foreign] = insert_values(df, df_enr[[col_program, col_enrollments_foreign]], col_program, col_enrollments_foreign)
+    except:
+        print("Нет базы по зачисленным или она называется не:\n")
+        print(enr_file)
 
     # считаем второстепенные столбцы
     df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
