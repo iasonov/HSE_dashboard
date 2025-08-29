@@ -188,7 +188,9 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
 def find_first_file(mask: str, default: str, folder: str = "") -> str:
     file_list = glob.glob(folder + mask)
     if len(file_list) > 0:
-        return file_list[0]
+        if file_list[0][0] != '~':
+            return file_list[0]
+        else: return file_list[1]
     else:
         return folder + default
 
@@ -434,6 +436,7 @@ def process_current_files(debug=None):
 
     # убираем офлайн-треки и финансы из СПб
     df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Санкт-Петербург")) & (df_master[master_col_programs] == "Финансы")) ]
+    df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Нижний Новгород")) & (df_master[master_col_programs] == "Финансы")) ]
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
     df_master = df_master.dropna(subset=[col_birthday])
