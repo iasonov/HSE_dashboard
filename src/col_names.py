@@ -22,7 +22,7 @@ bachelor_col_date_contract = "Дата заключения"
 bachelor_col_programs = "Конкурсная группа" # названия вида "Глобальные цифровые коммуникации (Медиа) - онлайн (О К)"
 bachelor_col_programs_contracts = "Образовательная программа"
 bachelor_col_payments = "Статус оплаты" # "Оплачен" или "Оплачен по квитанциям"
-bachelor_col_enrollments = "Конкурс"
+bachelor_col_enrollments = bachelor_col_programs_contracts # "Конкурс"
 bachelor_col_gosuslugi = "Источник данных" # ЕПГУ - госуслуги
 bachelor_col_reg_number = "Регистрационный номер" # для подсчета уников
 

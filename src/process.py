@@ -145,7 +145,7 @@ def process_foreign_programs(df, programs_names):
     df[master_foreign_col_programs_2] = df[master_foreign_col_programs_2].fillna("")
     is_online = df[master_foreign_col_programs_1].isin(programs_names)
     for i, row in df.iterrows():
-        if not is_online.loc[i] or row[master_foreign_col_faculty_1] == "Факультет Санкт-Петербургская школа экономики и менеджмента":
+        if not is_online.loc[i] or row[master_foreign_col_faculty_1] == "Факультет Санкт-Петербургская школа экономики и менеджмента" or row[master_foreign_col_faculty_1] == "Факультет экономики":
             df.loc[i, master_foreign_col_programs_1] = df.loc[i, master_foreign_col_programs_2]
 
     # df[master_foreign_col_programs_1] = df[master_foreign_col_programs_1] if df[master_foreign_col_programs_1].isin(programs_names) and df[master_foreign_col_faculty_1] != "Факультет Санкт-Петербургская школа экономики и менеджмента" else df[master_foreign_col_programs_2]
@@ -226,6 +226,8 @@ def process_current_files(debug=None):
     bachelor_app_file = find_first_file('*заявл*.xls*', "bac_applications.xlsx", relative_folder)
     bachelor_con_file = find_first_file('*дог*.xls*', "bac_contracts.xlsx", relative_folder)
     bachelor_enr_file = find_first_file('*зач*.xls*', "bac_enrolled.xlsx", relative_folder)
+
+    enr_file = relative_folder + "зачисленные.xlsx" #find_first_file('*зач*.xls*', "bac_enrolled.xlsx", relative_folder)
 
     # считывание файлов
     try:
@@ -601,6 +603,16 @@ def process_current_files(debug=None):
     df = df.drop(columns=['program_bitrix'])
 
     df.fillna(0, inplace=True)
+
+    # считаем зачисленных, если не посчитаны ранее
+    try:
+        df_enr = pd.read_excel(enr_file)
+        print("Данные по зачисленным из базы считаны")
+        df[col_enrollments] = insert_values(df, df_enr[[col_program, col_enrollments]], col_program, col_enrollments)
+        df[col_enrollments_foreign] = insert_values(df, df_enr[[col_program, col_enrollments_foreign]], col_program, col_enrollments_foreign)
+    except:
+        print("Нет базы по зачисленным или она называется не:\n")
+        print(enr_file)
 
     # считаем второстепенные столбцы
     df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
