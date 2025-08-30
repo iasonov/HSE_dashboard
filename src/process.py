@@ -623,26 +623,12 @@ def process_current_files(debug=None):
     df[col_conversion_contracts_to_enrollments]    = df[col_enrollments]  / df[col_contracts]
     df[col_payments_div_plan_rus]                  = df[col_payments]  / df[col_plan_rus]
     df[col_payments_div_plan_foreign]              = df[col_payments_foreign]  / df[col_plan_foreign]
-    df[col_income_1year     ] = df['price'] * df[col_payments] / 1000 # from thousands to millions
+    df[col_income_1year]                           = df['price'] * df[col_payments] / 1000 # from thousands to millions
     df.loc[df['level'] == 'master', col_income_all]   = df[col_income_1year] * 2
     df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year] * 4
     # df[col_income_all       ] = df[col_income_1year]  * (2 if df['level'] == 'master' else 4) # TODO check later
     df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
     df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
-
-    # def cells_from_row(row):
-    #     return "I" + str(row.name+2) + ":J" + str(row.name+2)
-
-    # def gender_bars_function(row):
-    #     return "=SPARKLINE(" + cells_from_row(row) + ',{"charttype","bar";"max",MAX(SUM(' + cells_from_row(row) + '),1);"color1","blue";"color2","red"})'
-    # df[col_gender] = df.apply(gender_bars_function, axis=1)
-
-    # def ages_bars_function(row):
-    #     return "=sparkline(SPLIT(L"+ str(row.name + 2) + ',";"),{"charttype", "column"; "color", "gray"})'
-    # df[col_ages_bars] = df.apply(ages_bars_function, axis=1)
-
-    # =SPARKLINE(I3:J3,{"charttype","bar";"max",MAX(SUM(I3:J3),1);"color1","blue";"color2","red"})
-    #=sparkline(SPLIT(L3,";"),{"charttype", "column"; "color", "gray"})
 
     df.replace(np.inf, 0, inplace=True)
     df.fillna(0, inplace=True)
