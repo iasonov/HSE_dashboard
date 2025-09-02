@@ -441,6 +441,7 @@ def process_current_files(debug=None):
     df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Нижний Новгород")) & (df_master[master_col_programs] == "Финансы")) ]
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
+    df_master = df_master[df_master["Основание зачисления/выбытия"] != "Завершение приемной кампании"]
     df_master = df_master.dropna(subset=[col_birthday])
 
     df_master = df_master.rename(columns={df_master.columns[-1]: 'gosuslugi', df_master.columns[-2]: 'applications_dates'})
@@ -628,7 +629,7 @@ def process_current_files(debug=None):
     df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year] * 4
     # df[col_income_all       ] = df[col_income_1year]  * (2 if df['level'] == 'master' else 4) # TODO check later
     df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
-    df[col_income_all_hse   ] = df[col_income_all] * df['income_percent'] / 100
+    df[col_income_all_hse   ] = df[col_income_all]   * df['income_percent'] / 100
 
     df.replace(np.inf, 0, inplace=True)
     df.fillna(0, inplace=True)
