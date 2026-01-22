@@ -441,11 +441,14 @@ def process_current_files(debug=None):
     df_master = df_master[~((df_master['Кампус конкурса'].str.contains("НИУ ВШЭ - Нижний Новгород")) & (df_master[master_col_programs] == "Финансы")) ]
     df_master['Магистерская специализация'] = df_master['Магистерская специализация'].fillna('')
     df_master = df_master[~df_master['Магистерская специализация'].str.contains("офлайн")]
-    df_master = df_master[df_master["Основание зачисления/выбытия"] != "Завершение приемной кампании"]
+    
     df_master = df_master.dropna(subset=[col_birthday])
-
     df_master = df_master.rename(columns={df_master.columns[-1]: 'gosuslugi', df_master.columns[-2]: 'applications_dates'})
+    
+    df_master_applications_by_week = process_by_week(df_master[(df_master['applications_dates'] != '31.08.2025')], master_col_programs, 'applications_dates', 'count', '%d.%m.%Y') #  & (df_master["Основание зачисления/выбытия"] != "Завершение приемной кампании")
 
+    df_master = df_master[df_master["Основание зачисления/выбытия"] != "Завершение приемной кампании"]
+    
     # достаем данные по ЛК, договорам, оплатам и зачислениям из АСАВ
     master_applications = df_master.groupby(master_col_programs)[master_col_programs].count() #.rename("program")#.sort_values(ascending=False)
     master_applications = pd.DataFrame({col_program:master_applications.index, 'values':master_applications.values})
@@ -485,7 +488,7 @@ def process_current_files(debug=None):
 
     print("Считаем регистрации и договоры по неделям")
     # считаем регистрации и договоры по неделям
-    df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates', 'count', '%d.%m.%Y')
+    # df_master_applications_by_week = process_by_week(df_master, master_col_programs, 'applications_dates', 'count', '%d.%m.%Y') # сделано раньше как костыль из-за изменений в АСАВ 31.08
     df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
     df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
     df_master['contracts_dates'] = df_master[master_col_contracts].str[-10:]

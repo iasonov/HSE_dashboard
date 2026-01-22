@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import gspread
 from gspread.utils import ValueRenderOption
@@ -13,7 +14,14 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
 
     # add credentials to the account
-    creds = ServiceAccountCredentials.from_json_keyfile_name('/Users/iasonov/Programming/Python/HSE_dashboard/service_credentials.json', scope)
+    if sys.platform == 'win32':
+        path_credentials = 'C:\\Users\\tijuanap\\Programs\\HSE_dashboard\\service_credentials.json'
+    elif sys.platform == 'darwin':
+        path_credentials = '/Users/iasonov/Programming/Python/HSE_dashboard/service_credentials.json'
+    else:
+        raise ValueError(f"Unsupported platform: {sys.platform}")
+        
+    creds = ServiceAccountCredentials.from_json_keyfile_name(path_credentials, scope)
 
     # authorize the clientsheet
     client = gspread.authorize(creds)
