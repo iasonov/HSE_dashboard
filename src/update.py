@@ -20,14 +20,14 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
         path_credentials = '/Users/iasonov/Programming/Python/HSE_dashboard/service_credentials.json'
     else:
         raise ValueError(f"Unsupported platform: {sys.platform}")
-        
+
     creds = ServiceAccountCredentials.from_json_keyfile_name(path_credentials, scope)
 
     # authorize the clientsheet
     client = gspread.authorize(creds)
 
     # get the instance of the Spreadsheet
-    sheet = client.open('Еженедельный отчет 2025_общий')
+    sheet = client.open('Еженедельный отчет 2026_общий')
 
     # get the first sheet of the Spreadsheet
     dashboard = sheet.get_worksheet(0)
