@@ -15,3 +15,4 @@ templates/bachelor_2024_contracts.xls
 templates/~$programs.xlsx
 templates/bachelor_2024.xls
 /.trunk
+src/my_secrets.py

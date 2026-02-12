@@ -63,18 +63,22 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     print("Данные в гугл-дашборд записаны")
 
     # TODO replace without absolute cell indexes
-    dashboard.update_acell('B43', str_time + ", " + str_date + ".2025") # 2025
+    dashboard.update_acell('B50', str_time + ", " + str_date + ".2026") # 2025
     if history_data is not None:
-        dashboard.update_acell('B46', str_date + ".2024") # 2024
-        dashboard.update_acell('B48', str_date + ".2023") # 2024
-        dashboard.update_acell('K46', str(history_data.loc[2024, 'leads'][0]))
-        dashboard.update_acell('K48', str(history_data.loc[2023, 'leads'][0]))
-        dashboard.update_acell('O46', str(history_data.loc[2024, 'applications']))
-        dashboard.update_acell('O48', str(history_data.loc[2023, 'applications']))
-        dashboard.update_acell('S46', str(history_data.loc[2024, 'contracts']))
-        dashboard.update_acell('S48', str(history_data.loc[2023, 'contracts']))
-        dashboard.update_acell('O45', str(history_data.loc[2025, 'applications_unique']))
-        dashboard.update_acell('O47', str(history_data.loc[2024, 'applications_unique']))
-        dashboard.update_acell('O49', str(history_data.loc[2023, 'applications_unique']))
+        dashboard.update_acell('B53', str_date + ".2025") # 2024
+        dashboard.update_acell('B55', str_date + ".2024") # 2024
+        dashboard.update_acell('B57', str_date + ".2023") # 2024
+        dashboard.update_acell('K53', str(history_data.loc[2024, 'leads'][0]))
+        dashboard.update_acell('K57', str(history_data.loc[2023, 'leads'][0]))
+        dashboard.update_acell('O53', str(history_data.loc[2025, 'applications']))
+        dashboard.update_acell('O55', str(history_data.loc[2024, 'applications']))
+        dashboard.update_acell('O57', str(history_data.loc[2023, 'applications']))
+        dashboard.update_acell('S53', str(history_data.loc[2025, 'contracts']))
+        dashboard.update_acell('S55', str(history_data.loc[2024, 'contracts']))
+        dashboard.update_acell('S57', str(history_data.loc[2023, 'contracts']))
+        dashboard.update_acell('O52', str(history_data.loc[2026, 'applications_unique']))
+        dashboard.update_acell('O54', str(history_data.loc[2025, 'applications_unique']))
+        dashboard.update_acell('O56', str(history_data.loc[2024, 'applications_unique']))
+        dashboard.update_acell('O58', str(history_data.loc[2023, 'applications_unique']))
 
     return
