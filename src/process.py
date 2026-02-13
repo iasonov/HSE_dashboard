@@ -110,25 +110,22 @@ def process_history_files():
 
     df_pivot = pd.DataFrame.from_dict({'leads' :
                                 {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
-                                 2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count()},
-                                 # ADD 2025
-                                # 'applications_old' :
-                                # {2023: applications_dates_2023.where(applications_dates_2023 + delta_now_2023 <= now).count(),
-                                #  2024: applications_dates_2024.where(applications_dates_2024 + delta_now_2024 <= now).count()},
-                                # 'contracts_old' :
-                                # {2023: contracts_dates_2023.where(contracts_dates_2023 + delta_now_2023 <= now).count(),
-                                #  2024: contracts_dates_2024.where(contracts_dates_2024 + delta_now_2024 <= now).count()},
+                                 2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count(),
+                                 2025: 0}, #TODO
                                 'applications' :
                                 {2023: asav_2023[asav_2023['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
-                                 2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()},
+                                 2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count(),
+                                 2025: 0},
                                  # ADD 2025
                                 'contracts' :
                                 {2023: asav_2023[asav_2023['contracts_dates'] + delta_now_2023 <= now]['contracts_dates'].count(),
-                                 2024: asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count() + bachelor_2024[bachelor_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count()},
+                                 2024: asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count() + bachelor_2024[bachelor_2024['contracts_dates'] + delta_now_2024 <= now]['contracts_dates'].count(),
+                                 2025: 0},
                                  # ADD 2025
                                 'applications_unique' :
                                 {2023: asav_2023_no_duplicates[asav_2023_no_duplicates['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
-                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024_no_duplicates[bachelor_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count()}
+                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024_no_duplicates[bachelor_2024_no_duplicates['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count(),
+                                 2025: 0}
                                  # ADD 2025
                                 })
     df_leads_prev        = leads_dates_2024_by_program[leads_dates_2024_by_program['leads_dates'] + delta_now_2024 <= now].groupby(col_programs_names)[col_programs_names].count()
