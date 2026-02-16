@@ -100,9 +100,10 @@ def process_history_files():
 
 
     now = datetime.now()
-    delta_now_2023 = timedelta(days=365+366)
-    delta_now_2024 = timedelta(days=365)
-    # ADD 2025
+    delta_now_2023 = timedelta(days=365+366+365)
+    delta_now_2024 = timedelta(days=365+365)
+    delta_now_2025 = timedelta(days=365)
+    
     asav_2023_no_duplicates = asav_2023.drop_duplicates(subset=[col_id_asav])
     asav_2024_no_duplicates = asav_2024.drop_duplicates(subset=[col_id_asav])
     bachelor_2024_no_duplicates = bachelor_2024.drop_duplicates(subset=[col_id_bachelor])
@@ -128,11 +129,11 @@ def process_history_files():
                                  2025: 0}
                                  # ADD 2025
                                 })
-    df_leads_prev        = leads_dates_2024_by_program[leads_dates_2024_by_program['leads_dates'] + delta_now_2024 <= now].groupby(col_programs_names)[col_programs_names].count()
-    df_applications_prev = pd.concat([asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count(),
-                                     bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
-    df_contracts_prev    = pd.concat([asav_2024[asav_2024['contracts_dates'] + delta_now_2024 <= now].groupby(master_col_programs)[master_col_programs].count(),
-                                     bachelor_2024[bachelor_2024['contracts_dates'] + delta_now_2024 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
+    df_leads_prev        = leads_dates_2025_by_program[leads_dates_2025_by_program['leads_dates'] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count()
+    df_applications_prev = pd.concat([asav_2025[asav_2025['applications_dates'] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
+                                     bachelor_2025[bachelor_2025['applications_dates'] + delta_now_2025 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
+    df_contracts_prev    = pd.concat([asav_2025[asav_2025['contracts_dates'] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
+                                     bachelor_2025[bachelor_2025['contracts_dates'] + delta_now_2025 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
     # ADD 2025
 
     print("Исторические данные считаны")
