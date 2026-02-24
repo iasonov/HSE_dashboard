@@ -664,7 +664,7 @@ def process_current_files(debug=None):
     df[col_leads_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_by_week)
 
     df[col_leads_after_april_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_after_april_prev)
-    df = df.drop(columns=['program_bitrix'])
+    df = df.drop(columns=['program_bitrix', 'tg_chat_id', 'campus', 'start_year'])
 
     df.fillna(0, inplace=True)
 
