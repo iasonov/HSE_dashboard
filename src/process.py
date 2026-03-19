@@ -258,7 +258,7 @@ def process_current_files(debug=None):
 
     # dashboard_file = "dashboard.xlsx"
 
-    bitrix_file = find_first_file('*стади*.xls*', "bitrix.xls", relative_folder)
+    bitrix_file = find_first_file('*DEAL*.xls*', "bitrix.xls", relative_folder)
 
     bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.xlsx" # TODO объединить за счет получения данных с помощью API
     portal_file = find_first_file('*порт*.xls*', "portal.xls", relative_folder)
@@ -436,8 +436,8 @@ def process_current_files(debug=None):
         df_master_early = df_master_early.rename(columns={df_master_early.columns[1]: col_id_asav})
         print("Данные от АСАВ по РП считаны")
     except:
-        print("Ошибка в обработке АСАВ по РП, возможно нет выгрузки из АСАВ или она называется не " + master_file_foreign)
-        df_master_early = pd.DataFrame(columns=[col_id_asav, col_programs_names])
+        print("Ошибка в обработке АСАВ по РП, возможно нет выгрузки из АСАВ или она называется не " + master_file_early_invitation)
+        df_master_early = pd.DataFrame(columns=[col_id_asav, col_programs_names, col_gender_asav])
 
 
 
