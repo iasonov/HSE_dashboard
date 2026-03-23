@@ -79,6 +79,7 @@ def process_history_files():
         # applications_dates_2024 = pd.read_csv(templates_folder + master_applications_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
         # contracts_dates_2023 = pd.read_csv(templates_folder + master_contracts_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
         # contracts_dates_2024 = pd.read_csv(templates_folder + master_contracts_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
+        # TODO добавить разделение по датам до и после 1 апреляы
         leads_dates_2023 = pd.read_csv(templates_folder + master_leads_file_2023, parse_dates=[0], date_format="%d.%m.%Y")
         leads_dates_2024 = pd.read_csv(templates_folder + master_leads_file_2024, parse_dates=[0], date_format="%d.%m.%Y")
         leads_dates_2025 = pd.read_csv(templates_folder + master_leads_file_2025, parse_dates=[0], date_format="%d.%m.%Y")
@@ -129,12 +130,16 @@ def process_history_files():
 
     except:
         print("Files of previous years are not founded or have errors")
-        # print(master_leads_file_2023)
-        # print(master_leads_file_2024)
-        # print(bitrix_file_2024)
-        # print(asav_file_2023)
-        # print(asav_file_2024)
-        # print(bachelor_2024)
+        print(master_leads_file_2023)
+        print(master_leads_file_2024)
+        print(master_leads_file_2025)
+        print(bitrix_file_2024)
+        print(bitrix_file_2025)
+        print(asav_file_2023)
+        print(asav_file_2024)
+        print(asav_file_2025)
+        print(bachelor_2024)
+        print(bachelor_2025)
 
 
 
@@ -232,9 +237,10 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
 def find_first_file(mask: str, default: str, folder: str = "") -> str:
     file_list = glob.glob(folder + mask)
     if len(file_list) > 0:
-        if file_list[0][0] != '~':
+        if file_list[0].find('~') == -1:
             return file_list[0]
-        else: return file_list[1]
+        else: 
+            return file_list[1]
     else:
         return folder + default
 
@@ -639,6 +645,8 @@ def process_current_files(debug=None):
         bachelor_2026_no_duplicates = pd.DataFrame(columns=[bachelor_col_programs])
 
     df_history.loc[2026, 'applications_unique'] = master_2026_no_duplicates[master_col_programs].count() + bachelor_2026_no_duplicates[bachelor_col_programs].count()
+    df_history.loc[2026, 'early_invitations_unique'] = df_master_early[df_master_early[col_programs_names].isin(masters_list)].drop_duplicates(subset=[col_id_asav])[col_programs_names].count()
+
 
     df_leads_prev = pd.DataFrame({col_program_bitrix:df_leads_prev.index, 'values':df_leads_prev.values})
 

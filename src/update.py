@@ -65,9 +65,10 @@ def update_sheet(aggregated_data, update_delta=False, history_data=None):
     # TODO replace without absolute cell indexes
     dashboard.update_acell('B50', str_time + ", " + str_date + ".2026") # 2025
     if history_data is not None:
-        dashboard.update_acell('B53', str_date + ".2025") # 2024
-        dashboard.update_acell('B55', str_date + ".2024") # 2024
-        dashboard.update_acell('B57', str_date + ".2023") # 2024
+        dashboard.update_acell('B53', str_date + ".2025")
+        dashboard.update_acell('B55', str_date + ".2024")
+        dashboard.update_acell('B57', str_date + ".2023")
+        dashboard.update_acell('AM52', str(history_data.loc[2026, 'early_invitations_unique']))
         dashboard.update_acell('K53', str(history_data.loc[2025, 'leads'][0]))
         dashboard.update_acell('K55', str(history_data.loc[2024, 'leads'][0]))
         dashboard.update_acell('K57', str(history_data.loc[2023, 'leads'][0]))
