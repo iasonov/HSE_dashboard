@@ -18,9 +18,14 @@ def run_dashboard() -> Path:
     timestamp = datetime.now().strftime("%Y.%m.%d-%H.%M.%S")
     output_path = output_dir / f"dashboard{timestamp}.xlsx"
 
-    current_data, history_data = process_current_files(None)
+    debug = None
+    update = False
+    count_delta = False
+
+    current_data, history_data = process_current_files(debug)
     current_data.to_excel(output_path, index=False)
-    update_sheet(current_data, False, history_data)
+    if update:
+        update_sheet(current_data, count_delta, history_data)
 
     return output_path
 
