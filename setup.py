@@ -5,6 +5,8 @@ setup(
     version="0.1",
     packages=find_packages(),
     install_requires=[
-        pandas, gspread, oauth2client # Add project dependencies here
+        "pandas",
+        "gspread",
+        "oauth2client",
     ],
 )

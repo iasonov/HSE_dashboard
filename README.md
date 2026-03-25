@@ -1,14 +1,32 @@
-# Dashboard for HSE Online
+# HSE Dashboard
 
-To you this app you need to install `pandas`, `gspread` and `oauth2client` libraries:
-> pip install pandas gspread oauth2client
+Пайплайн для сбора данных по приёмной кампании, расчёта метрик и отправки результата в Google Sheets.
 
-Download excel files from АСАВ & АИС ПК, and copy them to "data" folder. File names should look like:
-1. asav.xlsx
-2. bac_applications.xls
-3. bac_contracts.xls
-4. bac_enrolled.xlsx
-5. bitrix.xls (as html-table inside)
-6. portal.xls (as html-table inside)
+## Запуск
 
-If there is no file or file has another name - number will be zero.
+```bash
+python src/main.py
+```
+
+или
+
+```bash
+python -m src
+```
+
+## Структура данных
+
+- `data/raw` - исходные выгрузки без ручной правки.
+- `data/processed` - нормализованные промежуточные таблицы.
+- `data/archive` - архивные версии и исторические снимки.
+- `data/dashboards` - итоговые Excel-выгрузки.
+- `templates` - эталонные шаблоны, маппинги и справочники.
+
+Подробный контракт входных данных описан в [docs/data_contracts.md](docs/data_contracts.md).
+
+## Зависимости
+
+```bash
+pip install -r requirements.txt
+```
+
