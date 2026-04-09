@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
 
 from process import process_current_files
 from update import update_sheet
 
 
-def run_dashboard() -> Path:
+def run_dashboard(count_delta:bool = False, update_dashboard:bool = False) -> Path:
     """Run the dashboard pipeline and return the exported workbook path."""
 
     output_dir = Path("data") / "dashboards"
@@ -19,16 +20,14 @@ def run_dashboard() -> Path:
     output_path = output_dir / f"dashboard{timestamp}.xlsx"
 
     debug = None
-    update = False
-    count_delta = False
 
     current_data, history_data = process_current_files(debug)
-    current_data.to_excel(output_path, index=False)
-    if update:
-        update_sheet(current_data, count_delta, history_data)
+    current_data.to_excel(output_path)
+    if update_dashboard:
+        update_sheet(pd.read_excel(output_path), count_delta, history_data)
 
     return output_path
 
 
 if __name__ == "__main__":
-    run_dashboard()
+    run_dashboard(count_delta=True, update_dashboard=True)

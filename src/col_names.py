@@ -19,6 +19,8 @@ master_foreign_col_payments = "Договор оплачен"
 master_foreign_col_enrollments = None #"Приказ о зачислении" # пока не ясно, откуда брать этот столбец
 
 bitrix_col_date = "Дата создания"
+bitrix_col_contact = "Контакт"
+bitrix_col_deal_name = "Название сделки"
 
 bachelor_col_date = "Дата"
 bachelor_col_date_contract = "Дата заключения"
@@ -51,7 +53,8 @@ col_plan_foreign = 'plan_foreign'
 col_leads = "Кол-во заявок (online.hse.ru) с 1.10"
 col_leads_after_april = """Кол-во заявок (online.hse.ru) с 1.04"""
 col_leads_by_week = """Кол-во заявок (online.hse.ru) с 1.10 по неделям"""
-col_leads_after_april_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.10"""
+col_leads_after_april_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.04"""
+col_leads_prev = """Прошлогоднее Кол-во заявок (studyonline) с 1.10"""
 col_applications = """Регистрации в ЛК (РФ все приоритеты)"""
 col_applications_prev = """Прошлогодние Регистрации в ЛК (РФ все приоритеты)"""
 col_applications_by_week = """Регистрации в ЛК (РФ все приоритеты) по неделям"""

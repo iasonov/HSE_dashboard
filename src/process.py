@@ -58,10 +58,8 @@ def process_history_files():
     master_leads_file_2025        = "bitrix_2025-04-01_2025-09-15.csv"
 
     bitrix_file_2024              = "bitrix_2024-04-01_2024-09-15.xlsx"
-    if now < datetime(year=2026, month=4, day=1):
-        bitrix_file_2025          = "bitrix_2024-10-01_2025-03-31.xlsx"
-    else:
-        bitrix_file_2025          = "bitrix_2025-04-01_2025-09-15.xlsx"
+    bitrix_file_2025              = "bitrix_2025-04-01_2025-09-15.xlsx"
+    bitrix_file_2025_before_april = "bitrix_2024-10-01_2025-03-31.xlsx"
 
     asav_file_2023                = "asav_2023.xlsx"
     asav_file_2024                = "asav_2024.xlsx"
@@ -95,6 +93,11 @@ def process_history_files():
         leads_dates_2025_by_program = pd.read_excel(templates_folder + bitrix_file_2025) #, parse_dates=[0], date_format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2025_by_program['leads_dates'] = pd.to_datetime(leads_dates_2025_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2025_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
+
+        leads_dates_2025_before_april_by_program = pd.read_excel(templates_folder + bitrix_file_2025_before_april) #, parse_dates=[0], date_format="%d.%m.%Y  %hh:%mm:%ss")
+        leads_dates_2025_before_april_by_program['leads_dates'] = pd.to_datetime(leads_dates_2025_before_april_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
+        leads_dates_2025_before_april_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
+        
 
         print('Лиды в привязке к программам 2025 считаны')
 
@@ -135,6 +138,7 @@ def process_history_files():
         print(master_leads_file_2025)
         print(bitrix_file_2024)
         print(bitrix_file_2025)
+        print(bitrix_file_2025_before_april)
         print(asav_file_2023)
         print(asav_file_2024)
         print(asav_file_2025)
@@ -174,7 +178,9 @@ def process_history_files():
                                  2025: asav_2025_no_duplicates[asav_2025_no_duplicates['applications_dates'] + delta_now_2025 <= now]['applications_dates'].count() + bachelor_2025_no_duplicates[bachelor_2025_no_duplicates['applications_dates'] + delta_now_2025 <= now]['applications_dates'].count()}
                      
                                 })
-    df_leads_prev        = leads_dates_2025_by_program[leads_dates_2025_by_program['leads_dates'] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count()
+    df_leads_after_april_prev = leads_dates_2025_by_program[leads_dates_2025_by_program['leads_dates'] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count()
+    df_leads_all_prev         = df_leads_after_april_prev.add(leads_dates_2025_before_april_by_program[leads_dates_2025_before_april_by_program['leads_dates'] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count(), fill_value=0)
+    
     df_applications_prev = pd.concat([asav_2025[asav_2025['applications_dates'] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
                                      bachelor_2025[bachelor_2025['applications_dates'] + delta_now_2025 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
     df_contracts_prev    = pd.concat([asav_2025[asav_2025['contracts_dates'] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
@@ -182,7 +188,7 @@ def process_history_files():
 
 
     print("Исторические данные считаны")
-    return df_pivot, df_leads_prev, df_applications_prev, df_contracts_prev
+    return df_pivot, df_leads_all_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev
 
 def process_foreign_programs(df, programs_names):
     try:
@@ -219,7 +225,7 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     if all_programs.size == 0:
         weekly_counts.loc[0, 'week_start'] = datetime.now()
 
-    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=10, day=2, hour=0, minute=0, second=0),
+    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=9, day=29, hour=0, minute=0, second=0),
                             end=weekly_counts['week_start'].max(),
                             freq='W-MON')  # каждую неделю по вторникам TODO: check различия MON & TUE
 
@@ -244,6 +250,18 @@ def find_first_file(mask: str, default: str, folder: str = "") -> str:
     else:
         return folder + default
 
+def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
+    df[col_programs_names].fillna(main_studyonline, inplace=True)
+
+    namings_to_drop = ['тест тест', 'richkos test', '-дубль', 'тест тест-дубль', 'тест тесст-дубль' ] # приведены к нижнему регистру
+    for name in namings_to_drop:
+        # df = df.query('@bitrix_col_contact.str.contains')
+        df = df[df[bitrix_col_contact].str.lower() != name]
+        df = df[df[bitrix_col_deal_name].str.lower() != name]
+
+    return df
+
+
 
 def process_current_files(debug=None):
 
@@ -266,7 +284,7 @@ def process_current_files(debug=None):
 
     bitrix_file = find_first_file('*DEAL*.xls*', "bitrix.xls", relative_folder)
 
-    bitrix_file_before_april = "bitrix_2024-10-01_2025-03-31.xlsx" # TODO объединить за счет получения данных с помощью API
+    bitrix_file_before_april = "bitrix_2025-10-01_2026-03-31.xlsx" # TODO объединить за счет получения данных с помощью API
     portal_file = find_first_file('*порт*.xls*', "portal.xls", relative_folder)
 
     master_file = find_first_file('*асав*.xls*', "asav.xlsx", relative_folder)
@@ -316,41 +334,48 @@ def process_current_files(debug=None):
 
     # TODO заменить на API
     now = datetime.now()
-    if (now >= datetime(year=2026, month=4, day=1)):
+    DATE_01_04_26 = datetime(year=2026, month=4, day=1)
+
+    if (now >= DATE_01_04_26):
         try: # Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
             print("Начинаем считывать данные от Битрикса в html-формате")
-            df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0]
-            df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0] 
+            df_bitrix_after_april = preprocess_bitrix_file(df_bitrix_after_april)
+            df_bitrix_after_april[bitrix_col_date] = pd.to_datetime(df_bitrix_after_april[bitrix_col_date], dayfirst=True, errors='raise') # , format="%d.%m.%Y  %H:%M"
+
+            df_bitrix_after_april = df_bitrix_after_april[df_bitrix_after_april[bitrix_col_date] >= DATE_01_04_26] # надо отфильтровать с началом от 1.04, иначе может быть дублирование лидов с апреля и далее
+
             print("Данные от Битрикса считаны")
             # pd.read_excel(bitrix_file)
         except Exception as e:
             print(e)
-            try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
-                print("Начинаем считывать данные от Битрикса в xls-формате")
-                df_bitrix_after_april = pd.read_excel(bitrix_file, header=0)
-                df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
-                print("Данные от Битрикса считаны")
-                # pd.read_excel(bitrix_file)
-            except Exception as e:
-                print(e)
-                try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
-                    print("Начинаем считывать данные от Битрикса в xlsx-формате")
-                    df_bitrix_after_april = pd.read_excel(bitrix_file + 'x', header=0)
-                    df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
-                    print("Данные от Битрикса считаны")
-                    # pd.read_excel(bitrix_file)
-                except Exception as e:
-                    print(e)
-                    print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
+            # try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
+            #     print("Начинаем считывать данные от Битрикса в xls-формате")
+            #     df_bitrix_after_april = pd.read_excel(bitrix_file, header=0)
+            #     df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            #     print("Данные от Битрикса считаны")
+            #     # pd.read_excel(bitrix_file)
+            # except Exception as e:
+            #     print(e)
+            #     try:# Число лидов со studyonline с 1 апреля по настоящее время. На случай, если html чтение не сработало
+            #         print("Начинаем считывать данные от Битрикса в xlsx-формате")
+            #         df_bitrix_after_april = pd.read_excel(bitrix_file + 'x', header=0)
+            #         df_bitrix_after_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            #         print("Данные от Битрикса считаны")
+            #         # pd.read_excel(bitrix_file)
+            #     except Exception as e:
+            #         print(e)
+            #         print("Нет выгрузки из Битрикса или она называется не " + bitrix_file)
     else:
         df_bitrix_after_april = pd.DataFrame(columns=[bitrix_col_date, col_programs_names])
 
     # TODO заменить с помощью API
-    if (now >= datetime(year=2026, month=4, day=1)):
+
+    if (now >= DATE_01_04_26):
         try:# Число лидов из битрикс до 1 апреля (не включительно). Почему-то это html таблица, хотя файл xls
             print("Начинаем считывать данные от Битрикса до 31.03")
-            df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april, usecols="I:N")
-            df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april) # , usecols=columns_from_bitrix_file_2026= H:Q
+            df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
             print("Данные от Битрикса до 31.03 считаны")
             # pd.read_excel(bitrix_file)
         except:
@@ -359,7 +384,7 @@ def process_current_files(debug=None):
         try: # Число лидов со studyonline с 1 октября по настоящее время. Почему-то это html таблица, хотя файл xls
             print("Начинаем считывать данные от Битрикса в html-формате")
             df_bitrix_before_april = pd.read_html(bitrix_file, header=0)[0]
-            df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
+            df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
             print("Данные от Битрикса считаны")
             # pd.read_excel(bitrix_file)
         except Exception as e:
@@ -367,7 +392,7 @@ def process_current_files(debug=None):
             try:# Число лидов со studyonline с 1 октября по настоящее время. На случай, если html чтение не сработало
                 print("Начинаем считывать данные от Битрикса в xls-формате")
                 df_bitrix_before_april = pd.read_excel(bitrix_file, header=0)
-                df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
+                df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
                 print("Данные от Битрикса считаны")
                 # pd.read_excel(bitrix_file)
             except Exception as e:
@@ -375,7 +400,7 @@ def process_current_files(debug=None):
                 try:# Число лидов со studyonline с 1 октября по настоящее время. На случай, если html чтение не сработало
                     print("Начинаем считывать данные от Битрикса в xlsx-формате")
                     df_bitrix_before_april = pd.read_excel(bitrix_file + 'x', header=0)
-                    df_bitrix_before_april[col_programs_names].fillna(main_studyonline, inplace=True)
+                    df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
                     print("Данные от Битрикса считаны")
                     # pd.read_excel(bitrix_file)
                 except Exception as e:
@@ -419,16 +444,18 @@ def process_current_files(debug=None):
     df_master_dashboard  [col_leads_after_april] = insert_values(df_master_dashboard,   leads_after_april, 'program_bitrix', col_leads_after_april)
     df_bachelor_dashboard[col_leads_after_april] = insert_values(df_bachelor_dashboard, leads_after_april, 'program_bitrix', col_leads_after_april)
 
-    df_master_dashboard  [col_leads] += df_master_dashboard  [col_leads_after_april] # TODO check
+    df_master_dashboard  [col_leads] += df_master_dashboard  [col_leads_after_april] # adding leads after april to leads before april to count sum
     df_bachelor_dashboard[col_leads] += df_bachelor_dashboard[col_leads_after_april]
 
     main_leads = leads_before_april.loc[leads_before_april['program_bitrix'] == main_studyonline, 'values'].values[0]
 
-    try:
-        main_leads_after_april = leads_after_april.loc[leads_after_april['program_bitrix'] == main_studyonline, 'values'].values[0]
-        main_leads            += main_leads_after_april # TODO check
-    except:
-        print("Problem with main_leads_after_april")
+    if now >= DATE_01_04_26:
+        try:
+            main_leads_after_april = leads_after_april.loc[leads_after_april['program_bitrix'] == main_studyonline, 'values'].values[0]
+            main_leads            += main_leads_after_april # TODO check
+        except:
+            print("Problem with main_leads_after_april")
+    else:
         main_leads_after_april = 0
 
     df_master_dashboard  [col_leads_partners] = insert_values(df_master_dashboard,   leads_portal, 'program_bitrix', col_leads_partners)
@@ -635,7 +662,7 @@ def process_current_files(debug=None):
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
     # расчет данных прошлых лет
-    df_history, df_leads_prev, df_applications_prev, df_contracts_prev = process_history_files() # Only for master for now
+    df_history, df_leads_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev = process_history_files() 
 
     masters_list = df_online_master_programs[col_program].unique()
     master_2026_no_duplicates = df_master[df_master[master_col_programs].isin(masters_list)].drop_duplicates(subset=[master_col_reg_number])
@@ -649,14 +676,25 @@ def process_current_files(debug=None):
 
 
     df_leads_prev = pd.DataFrame({col_program_bitrix:df_leads_prev.index, 'values':df_leads_prev.values})
+    df_leads_after_april_prev = pd.DataFrame({col_program_bitrix:df_leads_after_april_prev.index, 'values':df_leads_after_april_prev.values})
 
-    try:
-        main_leads_after_april_prev = df_leads_prev[df_leads_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
+    try: #TODO change to date comparison from try
+        main_leads_after_april_prev = df_leads_after_april_prev[df_leads_after_april_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
     except:
         main_leads_after_april_prev = 0
 
+    try: #TODO change to date comparison from try
+        main_leads_prev = df_leads_prev[df_leads_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
+    except:
+        main_leads_prev = 0
+
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
-    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, col_program_bitrix: main_studyonline, col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_leads_after_april_prev: main_leads_after_april_prev}
+    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, 
+                                                     col_program_bitrix: main_studyonline, 
+                                                     col_leads: main_leads, 
+                                                     col_leads_prev : main_leads_prev,
+                                                     col_leads_after_april: main_leads_after_april, 
+                                                     col_leads_after_april_prev: main_leads_after_april_prev}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
 
 
@@ -667,11 +705,17 @@ def process_current_files(debug=None):
     df[col_contracts_prev] = insert_values(df, df_contracts_prev, col_program, col_contracts_prev)
 
     # считываем тренды по неделям (заявки)
-    df_leads_by_week = process_by_week(df_bitrix_before_april, col_programs_names, bitrix_col_date)
+    if now > DATE_01_04_26:
+        df_bitrix_before_april.rename(columns={'leads_dates': bitrix_col_date}, inplace=True) 
+
+    df_bitrix = pd.concat([df_bitrix_before_april, df_bitrix_after_april])
+
+    df_leads_by_week = process_by_week(df_bitrix, col_programs_names, bitrix_col_date)
     df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week[col_programs_names], 'values':df_leads_by_week['count']})
     df[col_leads_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_by_week)
 
-    df[col_leads_after_april_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_after_april_prev)
+    df[col_leads_after_april_prev] = insert_values(df, df_leads_after_april_prev, col_program_bitrix, col_leads_after_april_prev)
+    df[col_leads_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_prev)
     df = df.drop(columns=['program_bitrix', 'tg_chat_id', 'campus', 'start_year'])
 
     df.fillna(0, inplace=True)
