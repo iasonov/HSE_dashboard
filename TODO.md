@@ -2,13 +2,14 @@
 ## Features
 [ ] get data from Bitrix by API
 [ ] append new programs and convert to csv
-[ ] read early invitation from Katya
+[x] read early invitation from Katya
 [ ] group by manager
-[ ] add comparison to 2025 year - asav_file_2025, bachelor_file_2025, bitrix_file_2025?
+[x] add comparison to 2025 year - asav_file_2025, bachelor_file_2025, bitrix_file_2025?
 [x] gender for each program (based on applications?)
 [x] age for each program (based on applications?)
 [x] archive data (leads, applications, contracts) for each program
 --- delta for 1 weeks
+[ ] add yaml for texts https://habr.com/ru/articles/1035714/
 [x] add unique client's (applications column) for 2023-2025 years
 [x] dynamics graphics
 [x] comparison with prev. year
@@ -30,7 +31,7 @@
 [ ] labels for bac_contracts check
 [ ] check unique applications for bachelors
 [ ] check unique applications for masters (filter online programs)
-[ ] trends from monday
+[x] trends from monday
 
 ## Technical debt
 [ ] filter asav to online programs only

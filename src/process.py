@@ -31,6 +31,8 @@ def years_ago(years, from_date=None):
 def num_years(begin, end=None):
     if end is None:
         end = datetime.now()
+    if pd.isna(begin):
+        begin = datetime.now()
     num_years = int((end - begin).days / 365.2425)
     if begin > years_ago(num_years, end):
         return num_years - 1
@@ -259,6 +261,10 @@ def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
         df = df[df[bitrix_col_contact].str.lower() != name]
         df = df[df[bitrix_col_deal_name].str.lower() != name]
 
+    # костыль от переименования коллегами названий в битрексе по ходу ПК
+    unique_programs = df[col_programs_names].unique()
+    if "ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура" in unique_programs:
+        df.loc[df[col_programs_names] == "ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура", col_programs_names] = "ИНТДИЗ. Интерактивный дизайн"
     return df
 
 
@@ -583,7 +589,7 @@ def process_current_files(debug=None):
         master_female = pd.DataFrame({col_program:master_female.index, 'values':master_female.values})
         df_master_dashboard[col_female] = insert_values(df_master_dashboard, master_female, col_program, col_female)
 
-        df_master_early[col_birthday] = pd.to_datetime(df_master_early[col_birthday]).apply(num_years)
+        df_master_early[col_birthday] = pd.to_datetime(df_master_early[col_birthday], dayfirst=True, errors="coerce").apply(num_years)
         master_years_bars = df_master_early.groupby(col_programs_names)[col_birthday].apply(categorize_ages)
         master_years_bars = pd.DataFrame({col_program:master_years_bars.index, 'values':master_years_bars.values})
         df_master_dashboard[col_ages] = insert_values(df_master_dashboard, master_years_bars, col_program, col_ages)
