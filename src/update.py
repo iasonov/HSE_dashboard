@@ -59,6 +59,7 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
 
 
 def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, history_data: pd.DataFrame | None = None) -> None:
+    print("Starting Google Sheets update")
     prev_file = ROOT_DIR / "templates" / "prev_data.csv"
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
