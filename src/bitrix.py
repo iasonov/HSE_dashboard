@@ -11,7 +11,9 @@ from urllib.parse import urlencode
 import pandas as pd
 import requests
 
-BITRIX_PORTAL_360_WEBHOOK_URL = "https://bx.hse.ru/rest/1/testtest/"
+from my_secrets import secrets
+
+BITRIX_WEBHOOK_URL = secrets["BITRIX_WEBHOOK_URL"]
 BITRIX_DEAL_ENTITY_TYPE_ID = 2
 BITRIX_PAGE_SIZE = 50
 BITRIX_BATCH_LIMIT = 50
@@ -93,7 +95,7 @@ class BitrixRestClient:
 
     def __init__(
         self,
-        webhook_url: str = BITRIX_PORTAL_360_WEBHOOK_URL,
+        webhook_url: str = BITRIX_WEBHOOK_URL,
         *,
         requests_per_second: float = 2.0,
         timeout: int = 60,
@@ -158,10 +160,12 @@ class BitrixRestClient:
 
 
 def get_deal_category_id(
-    category_name: str = "Портал 360",
+
+    category_name: str = "Поступление 360",
     *,
     client: BitrixRestClient | None = None,
-    webhook_url: str = BITRIX_PORTAL_360_WEBHOOK_URL,
+    webhook_url: str = BITRIX_WEBHOOK_URL,
+
 ) -> int:
     """Return Bitrix deal category ID by its visible funnel name."""
 
@@ -184,17 +188,17 @@ def get_deal_category_id(
     raise ValueError(f"Deal funnel {category_name!r} was not found")
 
 
-def collect_portal_360_deals_dataframe(
+def collect_deals_dataframe(
     *,
-    webhook_url: str = BITRIX_PORTAL_360_WEBHOOK_URL,
-    category_name: str = "Портал 360",
+    webhook_url: str = BITRIX_WEBHOOK_URL,
+    category_name: str = "Поступление 360",
     category_id: int | None = None,
     select: Sequence[str] = DEFAULT_DEAL_SELECT,
     extra_filter: Mapping[str, Any] | None = None,
     client: BitrixRestClient | None = None,
     batch_size: int = BITRIX_BATCH_LIMIT,
 ) -> pd.DataFrame:
-    """Collect all deals from the Bitrix CRM funnel "Портал 360" into one DataFrame.
+    """Collect all deals from the Bitrix CRM funnel "Поступление 360" into one DataFrame.
 
     The function uses only read-only REST methods: ``crm.category.list``,
     ``crm.deal.list`` and read-only subcommands inside ``batch``. Pagination is
@@ -222,7 +226,8 @@ def collect_portal_360_deals_dataframe(
         return pd.DataFrame(deals)
 
     max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
-    starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE))
+    starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE)) #TODO test "-1"
+
     total_batches = math.ceil(len(starts) / max_batch_size)
     for batch_index in range(total_batches):
         chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
