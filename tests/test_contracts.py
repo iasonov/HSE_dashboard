@@ -2,24 +2,26 @@ from __future__ import annotations
 
 import unittest
 
-from contracts import METRIC_SPECS
+from contracts import BITRIX_ADMISSIONS_ENTITIES, BITRIX_DEALS
 
 
 class TestContracts(unittest.TestCase):
-    def test_registry_contains_core_metrics_only(self) -> None:
-        metric_names = {metric.name for metric in METRIC_SPECS}
+    def test_registry_contains_bitrix_admissions_entities(self) -> None:
+        entity_names = {entity.name for entity in BITRIX_ADMISSIONS_ENTITIES}
 
-        self.assertSetEqual(metric_names, {"leads", "applications", "contracts", "payments", "enrollments"})
-        self.assertNotIn("early_invitation", metric_names)
+        self.assertSetEqual(
+            entity_names,
+            {"deals", "contacts", "educational_programs", "contracts", "exams", "portfolios"},
+        )
 
-    def test_program_metrics_cover_both_sources(self) -> None:
-        source_by_name = {metric.name: metric.source for metric in METRIC_SPECS}
+    def test_deals_contract_uses_date_based_metrics(self) -> None:
+        required_fields = set(BITRIX_DEALS.required_fields)
 
-        self.assertEqual(source_by_name["applications"], "asav_and_aispk")
-        self.assertEqual(source_by_name["contracts"], "asav_and_aispk")
-        self.assertEqual(source_by_name["payments"], "asav_and_aispk")
-        self.assertEqual(source_by_name["enrollments"], "asav_and_aispk")
+        self.assertIn("date_registrationaispk", required_fields)
+        self.assertIn("date_dogovora", required_fields)
+        self.assertIn("prikaz_zachislenya", required_fields)
 
 
 if __name__ == "__main__":
     unittest.main()
+

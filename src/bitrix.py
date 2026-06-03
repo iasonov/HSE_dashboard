@@ -1,19 +1,22 @@
-"""Read-only helpers for loading Bitrix24 CRM deals into pandas."""
+"""Read-only helpers for loading Bitrix24 CRM data into pandas."""
 
 from __future__ import annotations
 
 import math
 import time
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 
 import pandas as pd
-import requests
 
-from my_secrets import secrets
+try:
+    from my_secrets import secrets
+except ImportError:
+    secrets = {}
 
-BITRIX_WEBHOOK_URL = secrets["BITRIX_WEBHOOK_URL"]
+BITRIX_WEBHOOK_URL = str(secrets.get("BITRIX_WEBHOOK_URL", ""))
 BITRIX_DEAL_ENTITY_TYPE_ID = 2
 BITRIX_PAGE_SIZE = 50
 BITRIX_BATCH_LIMIT = 50
@@ -46,6 +49,16 @@ DEFAULT_DEAL_SELECT = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class BitrixItemSource:
+    """Describe one Bitrix dynamic CRM item source."""
+
+    name: str
+    entity_type_id: int
+    select: tuple[str, ...]
+    extra_filter: Mapping[str, Any]
+
+
 class BitrixReadOnlyError(ValueError):
     """Raised when a non-read-only REST method is requested."""
 
@@ -65,7 +78,7 @@ def _assert_read_only_method(method: str) -> None:
         )
 
 
-def _flatten_params(params: Mapping[str, Any], prefix: str | None = None) -> list[tuple[str, Any]]:
+def _flatten_params(params: Mapping[str, Any], prefix: str | None) -> list[tuple[str, Any]]:
     """Convert nested Bitrix REST parameters to bracket-notation pairs."""
 
     pairs: list[tuple[str, Any]] = []
@@ -86,7 +99,7 @@ def _flatten_params(params: Mapping[str, Any], prefix: str | None = None) -> lis
 
 def _build_batch_command(method: str, params: Mapping[str, Any]) -> str:
     _assert_read_only_method(method)
-    query = urlencode(_flatten_params(params), doseq=True)
+    query = urlencode(_flatten_params(params, None), doseq=True)
     return f"{method}?{query}" if query else method
 
 
@@ -95,12 +108,12 @@ class BitrixRestClient:
 
     def __init__(
         self,
-        webhook_url: str = BITRIX_WEBHOOK_URL,
+        webhook_url: str,
         *,
-        requests_per_second: float = 2.0,
-        timeout: int = 60,
-        max_retries: int = 5,
-        retry_backoff: float = 2.0,
+        requests_per_second: float,
+        timeout: int,
+        max_retries: int,
+        retry_backoff: float,
     ) -> None:
         self.webhook_url = webhook_url.rstrip("/") + "/"
         self.timeout = timeout
@@ -108,6 +121,10 @@ class BitrixRestClient:
         self.retry_backoff = retry_backoff
         self._min_interval = 1 / requests_per_second if requests_per_second > 0 else 0
         self._last_request_at = 0.0
+        try:
+            import requests
+        except ImportError as error:
+            raise RuntimeError("Install the project dependencies before using BitrixRestClient") from error
         self.session = requests.Session()
 
     def _wait_for_rate_limit(self) -> None:
@@ -117,7 +134,7 @@ class BitrixRestClient:
         if elapsed < self._min_interval:
             time.sleep(self._min_interval - elapsed)
 
-    def call(self, method: str, params: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    def call(self, method: str, params: Mapping[str, Any] | None) -> dict[str, Any]:
         """Call a read-only Bitrix REST method and return its decoded JSON response."""
 
         _assert_read_only_method(method)
@@ -159,23 +176,29 @@ class BitrixRestClient:
         return result.get("result", {})
 
 
-def get_deal_category_id(
+def create_bitrix_client(webhook_url: str) -> BitrixRestClient:
+    """Create the default read-only Bitrix REST client."""
 
-    category_name: str = "Поступление 360",
-    *,
-    client: BitrixRestClient | None = None,
-    webhook_url: str = BITRIX_WEBHOOK_URL,
+    if not webhook_url:
+        raise ValueError("Bitrix webhook URL is empty; set secrets['BITRIX_WEBHOOK_URL']")
+    return BitrixRestClient(
+        webhook_url,
+        requests_per_second=2.0,
+        timeout=60,
+        max_retries=5,
+        retry_backoff=2.0,
+    )
 
-) -> int:
+
+def get_deal_category_id(category_name: str, client: BitrixRestClient) -> int:
     """Return Bitrix deal category ID by its visible funnel name."""
 
-    rest = client or BitrixRestClient(webhook_url)
     try:
-        response = rest.call("crm.category.list", {"entityTypeId": BITRIX_DEAL_ENTITY_TYPE_ID})
+        response = client.call("crm.category.list", {"entityTypeId": BITRIX_DEAL_ENTITY_TYPE_ID})
         category_result = response.get("result", [])
         categories = category_result.get("categories", []) if isinstance(category_result, Mapping) else category_result
     except BitrixAPIError:
-        response = rest.call(
+        response = client.call(
             "crm.dealcategory.list",
             {"order": {"SORT": "ASC"}, "select": ["ID", "NAME", "SORT"]},
         )
@@ -188,28 +211,49 @@ def get_deal_category_id(
     raise ValueError(f"Deal funnel {category_name!r} was not found")
 
 
-def collect_deals_dataframe(
-    *,
-    webhook_url: str = BITRIX_WEBHOOK_URL,
-    category_name: str = "Поступление 360",
-    category_id: int | None = None,
-    select: Sequence[str] = DEFAULT_DEAL_SELECT,
-    extra_filter: Mapping[str, Any] | None = None,
-    client: BitrixRestClient | None = None,
-    batch_size: int = BITRIX_BATCH_LIMIT,
+def _list_dataframe(
+    client: BitrixRestClient,
+    method: str,
+    result_key: str,
+    base_params: Mapping[str, Any],
+    batch_size: int,
 ) -> pd.DataFrame:
-    """Collect all deals from the Bitrix CRM funnel "Поступление 360" into one DataFrame.
+    first_response = client.call(method, {**base_params, "start": 0})
+    first_result = first_response.get("result", [])
+    rows = list(first_result.get(result_key, []) if isinstance(first_result, Mapping) else first_result)
+    total = int(first_response.get("total", len(rows)))
+    if total <= BITRIX_PAGE_SIZE:
+        return pd.DataFrame(rows)
 
-    The function uses only read-only REST methods: ``crm.category.list``,
-    ``crm.deal.list`` and read-only subcommands inside ``batch``. Pagination is
-    batched in groups of up to 50 commands, and the client throttles outbound
-    HTTP calls to two requests per second by default.
-    """
+    max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
+    starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE))
+    total_batches = math.ceil(len(starts) / max_batch_size)
+    for batch_index in range(total_batches):
+        chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
+        commands = {
+            f"items_{start}": (method, {**base_params, "start": start})
+            for start in chunk_starts
+        }
+        for page in client.batch(commands).values():
+            if isinstance(page, Mapping):
+                rows.extend(page.get(result_key, []))
+            else:
+                rows.extend(page or [])
 
-    rest = client or BitrixRestClient(webhook_url)
-    resolved_category_id = (
-        category_id if category_id is not None else get_deal_category_id(category_name, client=rest)
-    )
+    return pd.DataFrame(rows)
+
+
+def collect_deals_dataframe(
+    client: BitrixRestClient,
+    category_name: str,
+    category_id: int | None,
+    select: Sequence[str],
+    extra_filter: Mapping[str, Any] | None,
+    batch_size: int,
+) -> pd.DataFrame:
+    """Collect all deals from a Bitrix CRM funnel into one DataFrame."""
+
+    resolved_category_id = category_id if category_id is not None else get_deal_category_id(category_name, client)
     deal_filter: dict[str, Any] = {"CATEGORY_ID": resolved_category_id}
     if extra_filter:
         deal_filter.update(extra_filter)
@@ -218,24 +262,55 @@ def collect_deals_dataframe(
         "filter": deal_filter,
         "order": {"ID": "ASC"},
     }
+    return _list_dataframe(client, "crm.deal.list", "result", base_params, batch_size)
 
-    first_response = rest.call("crm.deal.list", {**base_params, "start": 0})
-    deals = list(first_response.get("result", []))
-    total = int(first_response.get("total", len(deals)))
-    if total <= BITRIX_PAGE_SIZE:
-        return pd.DataFrame(deals)
 
-    max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
-    starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE)) #TODO test "-1"
+def collect_portal_360_deals_dataframe(
+    client: BitrixRestClient | None = None,
+    category_name: str = "Поступление 360",
+    category_id: int | None = None,
+    select: Sequence[str] = DEFAULT_DEAL_SELECT,
+    extra_filter: Mapping[str, Any] | None = None,
+    batch_size: int = BITRIX_BATCH_LIMIT,
+) -> pd.DataFrame:
+    """Compatibility helper for the admissions funnel deal export."""
 
-    total_batches = math.ceil(len(starts) / max_batch_size)
-    for batch_index in range(total_batches):
-        chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
-        commands = {
-            f"deals_{start}": ("crm.deal.list", {**base_params, "start": start})
-            for start in chunk_starts
-        }
-        for page in rest.batch(commands).values():
-            deals.extend(page or [])
+    rest = client if client is not None else create_bitrix_client(BITRIX_WEBHOOK_URL)
+    return collect_deals_dataframe(rest, category_name, category_id, select, extra_filter, batch_size)
 
-    return pd.DataFrame(deals)
+
+def collect_crm_items_dataframe(
+    client: BitrixRestClient,
+    entity_type_id: int,
+    select: Sequence[str],
+    extra_filter: Mapping[str, Any],
+    batch_size: int,
+) -> pd.DataFrame:
+    """Collect Bitrix dynamic CRM items by entity type ID."""
+
+    base_params: dict[str, Any] = {
+        "entityTypeId": entity_type_id,
+        "select": list(select),
+        "filter": dict(extra_filter),
+        "order": {"id": "ASC"},
+    }
+    return _list_dataframe(client, "crm.item.list", "items", base_params, batch_size)
+
+
+def collect_bitrix_item_sources(
+    client: BitrixRestClient,
+    sources: Sequence[BitrixItemSource],
+    batch_size: int,
+) -> dict[str, pd.DataFrame]:
+    """Collect configured Bitrix dynamic CRM item sources."""
+
+    tables: dict[str, pd.DataFrame] = {}
+    for source in sources:
+        tables[source.name] = collect_crm_items_dataframe(
+            client,
+            source.entity_type_id,
+            source.select,
+            source.extra_filter,
+            batch_size,
+        )
+    return tables

@@ -20,8 +20,9 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False) -> Pa
     output_path = output_dir / f"dashboard{timestamp}.xlsx"
 
     debug = None
+    legacy = False # True - ASAV & AIS PK, False - only Bitrix
 
-    current_data, history_data = process_current_files(debug)
+    current_data, history_data = process_current_files(debug, legacy)
     current_data.to_excel(output_path)
     if update_dashboard:
         update_sheet(pd.read_excel(output_path), count_delta, history_data)

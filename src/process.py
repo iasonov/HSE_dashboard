@@ -33,11 +33,10 @@ def num_years(begin, end=None):
         end = datetime.now()
     if pd.isna(begin):
         begin = datetime.now()
-    num_years = int((end - begin).days / 365.2425)
-    if begin > years_ago(num_years, end):
-        return num_years - 1
-    else:
-        return num_years
+    years = end.year - begin.year
+    if begin > years_ago(years, end):
+        return years - 1
+    return years
 
 def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have "values" column
     for i, row in df_dashboard.iterrows():
@@ -261,15 +260,14 @@ def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
         df = df[df[bitrix_col_contact].str.lower() != name]
         df = df[df[bitrix_col_deal_name].str.lower() != name]
 
-    # костыль от переименования коллегами названий в битрексе по ходу ПК
-    unique_programs = df[col_programs_names].unique()
-    if "ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура" in unique_programs:
-        df.loc[df[col_programs_names] == "ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура", col_programs_names] = "ИНТДИЗ. Интерактивный дизайн"
+    # костыль от переименования коллегами названий в битрексе по ходу ПК, можно придумать как исправить в TODO
+    df.loc[df[col_programs_names] == "ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура", col_programs_names] = "ИНТДИЗ. Интерактивный дизайн"
+    
     return df
 
 
 
-def process_current_files(debug=None):
+def process_current_files_legacy(debug=None):
 
     if debug is None:
         import warnings
@@ -758,3 +756,11 @@ def process_current_files(debug=None):
     df.fillna(0, inplace=True)
 
     return df, df_history
+
+
+def process_current_files(debug=None, legacy=None):
+    if legacy:
+        return process_current_files_legacy(debug)
+    else:
+        from bitrix_pipeline import process_current_files_from_bitrix
+        return process_current_files_from_bitrix(debug)

@@ -20,7 +20,7 @@ class FakeBitrixClient:
     def call(self, method, params=None):
         self.calls.append((method, params))
         if method == "crm.category.list":
-            return {"result": {"categories": [{"id": 7, "name": "Портал 360"}]}}
+            return {"result": {"categories": [{"id": 7, "name": "Поступление 360"}]}}
         if method == "crm.deal.list":
             return {
                 "result": [{"ID": str(i), "CATEGORY_ID": "7"} for i in range(BITRIX_PAGE_SIZE)],
@@ -41,10 +41,10 @@ class FakeBitrixClient:
 
 
 class TestBitrixHelpers(unittest.TestCase):
-    def test_get_deal_category_id_finds_portal_360(self) -> None:
+    def test_get_deal_category_id_finds_admissions_funnel(self) -> None:
         client = FakeBitrixClient()
 
-        result = get_deal_category_id(client=client)
+        result = get_deal_category_id("Поступление 360", client)
 
         self.assertEqual(result, 7)
         self.assertEqual(client.calls[0][0], "crm.category.list")
@@ -59,7 +59,7 @@ class TestBitrixHelpers(unittest.TestCase):
         self.assertEqual(result.iloc[-1]["ID"], str(BITRIX_PAGE_SIZE + 2))
         self.assertEqual(client.calls[1][0], "crm.deal.list")
         self.assertEqual(client.calls[1][1]["filter"], {"CATEGORY_ID": 7})
-        self.assertEqual(client.batch_calls[0]["deals_50"][0], "crm.deal.list")
+        self.assertEqual(client.batch_calls[0]["items_50"][0], "crm.deal.list")
 
     def test_build_batch_command_rejects_writing_methods(self) -> None:
         with self.assertRaises(BitrixReadOnlyError):

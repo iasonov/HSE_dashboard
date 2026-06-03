@@ -1,4 +1,4 @@
-"""Static registry for dashboard sources and metric definitions."""
+"""Bitrix admissions data contracts used by the dashboard pipeline."""
 
 from __future__ import annotations
 
@@ -6,132 +6,60 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
-class SourceSpec:
-    """Describe one data source used by the dashboard."""
+class BitrixEntity:
+    """Describe one Bitrix admissions entity table."""
 
     name: str
-    folder: str
-    primary_filename: str
-    file_patterns: tuple[str, ...]
-    extensions: tuple[str, ...]
-    description: str
+    id_field: str
+    required_fields: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
-class MetricSpec:
-    """Describe one dashboard metric."""
-
-    name: str
-    source: str
-    grain: str
-    formula: str
-    dependencies: tuple[str, ...]
-
-
-DATA_LAYOUT: tuple[tuple[str, str], ...] = (
-    ("data/raw", "Source exports"),
-    ("data/processed", "Normalized intermediate tables"),
-    ("data/archive", "Historical snapshots"),
-    ("data/dashboards", "Generated dashboard workbooks"),
-    ("templates", "Templates and mappings"),
-)
-
-
-SOURCE_SPECS: tuple[SourceSpec, ...] = (
-    SourceSpec(
-        name="bitrix",
-        folder="data/raw",
-        primary_filename="DEAL_*.xls*",
-        file_patterns=("*DEAL*.xls*",),
-        extensions=("xls", "xlsx", "csv"),
-        description="Leads export from Bitrix or the future API adapter.",
-    ),
-    SourceSpec(
-        name="portal",
-        folder="data/raw",
-        primary_filename="portal.xls",
-        file_patterns=("*port*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Partner portal lead export.",
-    ),
-    SourceSpec(
-        name="asav_master",
-        folder="data/raw",
-        primary_filename="asav.xlsx",
-        file_patterns=("*asav*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Master's ASAV export.",
-    ),
-    SourceSpec(
-        name="asav_foreign",
-        folder="data/raw",
-        primary_filename="asav_foreign.xlsx",
-        file_patterns=("*foreign*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Foreign-track ASAV export.",
-    ),
-    SourceSpec(
-        name="aispk_applications",
-        folder="data/raw",
-        primary_filename="bac_applications.xlsx",
-        file_patterns=("*app*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Bachelor applications export from AIS PK.",
-    ),
-    SourceSpec(
-        name="aispk_contracts",
-        folder="data/raw",
-        primary_filename="bac_contracts.xlsx",
-        file_patterns=("*con*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Bachelor contracts export from AIS PK.",
-    ),
-    SourceSpec(
-        name="aispk_enrollments",
-        folder="data/raw",
-        primary_filename="bac_enrolled.xlsx",
-        file_patterns=("*enroll*.xls*",),
-        extensions=("xls", "xlsx"),
-        description="Bachelor enrollments export from AIS PK.",
+BITRIX_DEALS = BitrixEntity(
+    name="deals",
+    id_field="idaispk",
+    required_fields=(
+        "idaispk",
+        "idcontact",
+        "idop",
+        "date_registrationaispk",
+        "date_dogovora",
+        "prikaz_zachislenya", # TODO reg_nomer, date_zayvlenya_soglasie, dogovor_oplachen, tip_oplaty, prioritet_plat_mest, skidka_rezultatvi, campus, tekuroven_obrazovanya, vid_mesta
     ),
 )
+BITRIX_CONTACTS = BitrixEntity(
+    name="contacts",
+    id_field="idaispk",
+    required_fields=("idaispk", "pol", "birthdate"), # TODO idgrazhdanstvo, idstrana_prozhivanya, inostranec
 
+)
+BITRIX_EDUCATIONAL_PROGRAMS = BitrixEntity(
+    name="educational_programs",
+    id_field="idaispk",
+    required_fields=("idaispk", "name", "uroven_obrazovanya", "campus"), # TODO tip_op, facultet
 
-METRIC_SPECS: tuple[MetricSpec, ...] = (
-    MetricSpec(
-        name="leads",
-        source="bitrix_and_portal",
-        grain="program",
-        formula="count rows by program",
-        dependencies=("lead_date", "program"),
-    ),
-    MetricSpec(
-        name="applications",
-        source="asav_and_aispk",
-        grain="program",
-        formula="count applications by program across master's ASAV and bachelor's AIS PK",
-        dependencies=("applications_dates", "program"),
-    ),
-    MetricSpec(
-        name="contracts",
-        source="asav_and_aispk",
-        grain="program",
-        formula="count contracts by program across master's ASAV and bachelor's AIS PK",
-        dependencies=("contracts_dates", "program"),
-    ),
-    MetricSpec(
-        name="payments",
-        source="asav_and_aispk",
-        grain="program",
-        formula="count paid contracts by program across master's ASAV and bachelor's AIS PK",
-        dependencies=("payment_status", "program"),
-    ),
-    MetricSpec(
-        name="enrollments",
-        source="asav_and_aispk",
-        grain="program",
-        formula="count enrollments by program across master's ASAV and bachelor's AIS PK",
-        dependencies=("enrollment_status", "program"),
-    ),
+)
+BITRIX_CONTRACTS = BitrixEntity(
+    name="contracts",
+    id_field="idaispk",
+    required_fields=("idaispk", "iddeal", "data_oplaty"), # TODO istochnik, datetimecreate, idregion_prozhivanya
+)
+BITRIX_EXAMS = BitrixEntity(
+    name="exams",
+    id_field="idaispk",
+    required_fields=("idaispk", "idcontact", "iddeal", "ball", "date_testirovanya", "aktive"),
+)
+BITRIX_PORTFOLIOS = BitrixEntity(
+    name="portfolios",
+    id_field="idaispk",
+    required_fields=("idaispk", "idcontact", "iddeal", "idtovar", "status_elementa_portfolio"),
+)
+
+BITRIX_ADMISSIONS_ENTITIES: tuple[BitrixEntity, ...] = (
+    BITRIX_DEALS,
+    BITRIX_CONTACTS,
+    BITRIX_EDUCATIONAL_PROGRAMS,
+    BITRIX_CONTRACTS,
+    BITRIX_EXAMS,
+    BITRIX_PORTFOLIOS,
 )
 
