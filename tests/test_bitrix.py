@@ -50,10 +50,10 @@ class TestBitrixHelpers(unittest.TestCase):
         self.assertEqual(client.calls[0][0], "crm.category.list")
         self.assertEqual(client.calls[0][1], {"entityTypeId": 2})
 
-    def test_collect_portal_360_deals_dataframe_uses_batch_read_only_pages(self) -> None:
+    def test_collect_360_deals_dataframe_uses_batch_read_only_pages(self) -> None:
         client = FakeBitrixClient()
 
-        result = collect_portal_360_deals_dataframe(client=client, select=("ID", "CATEGORY_ID"))
+        result = collect_360_deals_dataframe(client=client, select=("ID", "CATEGORY_ID"))
 
         self.assertEqual(len(result), BITRIX_PAGE_SIZE + 3)
         self.assertEqual(result.iloc[-1]["ID"], str(BITRIX_PAGE_SIZE + 2))

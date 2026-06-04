@@ -265,7 +265,8 @@ def collect_deals_dataframe(
     return _list_dataframe(client, "crm.deal.list", "result", base_params, batch_size)
 
 
-def collect_portal_360_deals_dataframe(
+# TODO unused? only for testing?
+def collect_360_deals_dataframe(
     client: BitrixRestClient | None = None,
     category_name: str = "Поступление 360",
     category_id: int | None = None,
@@ -290,7 +291,7 @@ def collect_crm_items_dataframe(
 
     base_params: dict[str, Any] = {
         "entityTypeId": entity_type_id,
-        "select": list(select),
+        "select": ["*"], # TODO debug list(select),
         "filter": dict(extra_filter),
         "order": {"id": "ASC"},
     }

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
+from bitrix import BitrixItemSource, BitrixRestClient, collect_bitrix_item_sources
 from col_names import (
     col_ages,
     col_ages_mean,
@@ -15,11 +17,28 @@ from col_names import (
     col_applications_by_week,
     col_contracts,
     col_contracts_by_week,
+    col_conversion_applications_to_contracts,
+    col_conversion_contracts_to_enrollments,
+    col_conversion_contracts_to_payments,
+    col_conversion_leads_to_contracts,
     col_enrollments,
+    col_enrollments_foreign,
     col_female,
+    col_income_1year,
+    col_income_1year_hse,
+    col_income_all,
+    col_income_all_hse,
     col_leads,
+    col_leads_partners,
+    col_leads_total,
     col_male,
+    col_needed_applications,
     col_payments,
+    col_payments_div_plan_foreign,
+    col_payments_div_plan_rus,
+    col_payments_foreign,
+    col_plan_foreign,
+    col_plan_rus,
     col_program,
 )
 from contracts import (
@@ -71,14 +90,27 @@ NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
     "gender",
     "birthdate",
 )
+REQUIRED_BITRIX_TABLE_NAMES = (
+    "deals",
+    "contacts",
+    "educational_programs",
+    "contracts",
+    # "exams",
+    # "portfolios",
+)
+OPTIONAL_ENTITY_SELECT_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "educational_programs": ("shortname", "forma_obuchenya"),
+}
+TECHNICAL_DASHBOARD_COLUMNS = ("program_bitrix", "tg_chat_id", "campus", "start_year", "format")
+NEEDED_APPLICATIONS_RATIO = 45 / 100
+MALE_VALUES = ("Муж.", "ÐœÑƒÐ¶.")
+FEMALE_VALUES = ("Жен.", "Ð–ÐµÐ½.")
 
 
 def _require_columns(frame: pd.DataFrame, entity: BitrixEntity) -> None:
     missing_columns = [column for column in entity.required_fields if column not in frame.columns]
     if missing_columns:
-        raise ValueError(
-            f"Bitrix table {entity.name!r} is missing required columns: {missing_columns}"
-        )
+        raise ValueError(f"Bitrix table {entity.name!r} is missing required columns: {missing_columns}")
 
 
 def _as_text_series(series: pd.Series) -> pd.Series:
@@ -199,115 +231,116 @@ def normalize_bitrix_admissions_data(raw_tables: BitrixRawTables) -> NormalizedB
     return NormalizedBitrixAdmissionsData(applications=applications, exams=exams, portfolios=portfolios)
 
 
-def process_current_files_from_bitrix(
-    raw_tables: BitrixRawTables,
-    dashboard_template: pd.DataFrame,
-    as_of: datetime,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build current dashboard data from Bitrix tables only."""
+def create_bitrix_admissions_sources(entity_type_ids: Mapping[str, int]) -> tuple[BitrixItemSource, ...]:
+    """Create read-only Bitrix item sources for all admissions tables."""
 
-    admissions_data = normalize_bitrix_admissions_data(raw_tables)
-    dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, admissions_data, as_of)
-    history = pd.DataFrame()
-    #     df_history, df_leads_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev = process_history_files() 
+    missing_names = [name for name in REQUIRED_BITRIX_TABLE_NAMES if name not in entity_type_ids]
+    if missing_names:
+        raise ValueError(f"Missing Bitrix entity type IDs for admissions tables: {missing_names}")
 
-    # masters_list = df_online_master_programs[col_program].unique()
-    # master_2026_no_duplicates = df_master[df_master[master_col_programs].isin(masters_list)].drop_duplicates(subset=[master_col_reg_number])
-    # try:
-    #     bachelor_2026_no_duplicates = df_bachelor_app.drop_duplicates(subset=[bachelor_col_reg_number])
-    # except:
-    #     bachelor_2026_no_duplicates = pd.DataFrame(columns=[bachelor_col_programs])
+    entity_by_name: Mapping[str, BitrixEntity] = {
+        entity.name: entity
+        for entity in (
+            BITRIX_DEALS,
+            BITRIX_CONTACTS,
+            BITRIX_EDUCATIONAL_PROGRAMS,
+            BITRIX_CONTRACTS,
+            BITRIX_EXAMS,
+            BITRIX_PORTFOLIOS,
+        )
+    }
+    sources: list[BitrixItemSource] = []
+    for table_name in REQUIRED_BITRIX_TABLE_NAMES:
+        entity = entity_by_name[table_name]
+        select = tuple(dict.fromkeys((*entity.required_fields, *OPTIONAL_ENTITY_SELECT_FIELDS.get(table_name, ()))))
+        sources.append(
+            BitrixItemSource(
+                name=table_name,
+                entity_type_id=int(entity_type_ids[table_name]),
+                select=select,
+                extra_filter={"CATEGORY_ID" : 4} if table_name == "deals" else {}, # TODO change to resolving CATEGORY_ID by name "Поступление 360"
+            )
+        )
+    return tuple(sources)
 
-    # df_history.loc[2026, 'applications_unique'] = master_2026_no_duplicates[master_col_programs].count() + bachelor_2026_no_duplicates[bachelor_col_programs].count()
-    # df_history.loc[2026, 'early_invitations_unique'] = df_master_early[df_master_early[col_programs_names].isin(masters_list)].drop_duplicates(subset=[col_id_asav])[col_programs_names].count()
+# def collect_deals_dataframe(
+#     *,
+#     webhook_url: str = BITRIX_WEBHOOK_URL,
+#     category_name: str = "Поступление 360",
+#     category_id: int | None = None,
+#     select: Sequence[str] = DEFAULT_DEAL_SELECT,
+#     extra_filter: Mapping[str, Any] | None = None,
+#     client: BitrixRestClient | None = None,
+#     batch_size: int = BITRIX_BATCH_LIMIT,
+# ) -> pd.DataFrame:
+#     """Collect all deals from the Bitrix CRM funnel "Поступление 360" into one DataFrame.
+
+#     The function uses only read-only REST methods: ``crm.category.list``,
+#     ``crm.deal.list`` and read-only subcommands inside ``batch``. Pagination is
+#     batched in groups of up to 50 commands, and the client throttles outbound
+#     HTTP calls to two requests per second by default.
+#     """
+
+#     rest = client or BitrixRestClient(webhook_url)
+#     resolved_category_id = (
+#         category_id if category_id is not None else get_deal_category_id(category_name, client=rest)
+#     )
+#     deal_filter: dict[str, Any] = {"CATEGORY_ID": resolved_category_id}
+#     if extra_filter:
+#         deal_filter.update(extra_filter)
+#     base_params: dict[str, Any] = {
+#         "select": list(select),
+#         "filter": deal_filter,
+#         "order": {"ID": "ASC"},
+#     }
+
+#     first_response = rest.call("crm.deal.list", {**base_params, "start": 0})
+#     deals = list(first_response.get("result", []))
+#     total = int(first_response.get("total", len(deals)))
+#     if total <= BITRIX_PAGE_SIZE:
+#         return pd.DataFrame(deals)
+
+#     max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
+#     starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE)) #TODO test "-1"
+
+#     total_batches = math.ceil(len(starts) / max_batch_size)
+#     for batch_index in range(total_batches):
+#         chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
+#         commands = {
+#             f"deals_{start}": ("crm.deal.list", {**base_params, "start": start})
+#             for start in chunk_starts
+#         }
+#         for page in rest.batch(commands).values():
+#             deals.extend(page or [])
+
+#     return pd.DataFrame(deals)
 
 
-    # df_leads_prev = pd.DataFrame({col_program_bitrix:df_leads_prev.index, 'values':df_leads_prev.values})
-    # df_leads_after_april_prev = pd.DataFrame({col_program_bitrix:df_leads_after_april_prev.index, 'values':df_leads_after_april_prev.values})
+def collect_bitrix_raw_tables(
+    client: BitrixRestClient,
+    sources: Sequence[BitrixItemSource],
+    batch_size: int,
+) -> BitrixRawTables:
+    """Collect Bitrix admissions item sources into the raw-table container."""
 
-    # try: #TODO change to date comparison from try
-    #     main_leads_after_april_prev = df_leads_after_april_prev[df_leads_after_april_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
-    # except:
-    #     main_leads_after_april_prev = 0
-
-    # try: #TODO change to date comparison from try
-    #     main_leads_prev = df_leads_prev[df_leads_prev[col_program_bitrix] == main_studyonline]['values'].values[0]
-    # except:
-    #     main_leads_prev = 0
-
-    # df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
-    # df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, 
-    #                                                  col_program_bitrix: main_studyonline, 
-    #                                                  col_leads: main_leads, 
-    #                                                  col_leads_prev : main_leads_prev,
-    #                                                  col_leads_after_april: main_leads_after_april, 
-    #                                                  col_leads_after_april_prev: main_leads_after_april_prev}
-    # df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
-
-
-    # df_applications_prev = pd.DataFrame({col_program:df_applications_prev.index, 'values':df_applications_prev.values})
-    # df[col_applications_prev] = insert_values(df, df_applications_prev, col_program, col_applications_prev)
-
-    # df_contracts_prev = pd.DataFrame({col_program:df_contracts_prev.index, 'values':df_contracts_prev.values})
-    # df[col_contracts_prev] = insert_values(df, df_contracts_prev, col_program, col_contracts_prev)
-
-    # # считываем тренды по неделям (заявки)
-    # if now > DATE_01_04_26:
-    #     df_bitrix_before_april.rename(columns={'leads_dates': bitrix_col_date}, inplace=True) 
-
-    # df_bitrix = pd.concat([df_bitrix_before_april, df_bitrix_after_april])
-
-    # df_leads_by_week = process_by_week(df_bitrix, col_programs_names, bitrix_col_date)
-    # df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week[col_programs_names], 'values':df_leads_by_week['count']})
-    # df[col_leads_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_by_week)
-
-    # df[col_leads_after_april_prev] = insert_values(df, df_leads_after_april_prev, col_program_bitrix, col_leads_after_april_prev)
-    # df[col_leads_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_prev)
-    # df = df.drop(columns=['program_bitrix', 'tg_chat_id', 'campus', 'start_year'])
-
-    # df.fillna(0, inplace=True)
-
-    # # считаем зачисленных, если не посчитаны ранее
-    # try:
-    #     df_enr = pd.read_excel(enr_file)
-    #     print("Данные по зачисленным из базы считаны")
-    #     df[col_enrollments] = insert_values(df, df_enr[[col_program, col_enrollments]], col_program, col_enrollments)
-    #     df[col_enrollments_foreign] = insert_values(df, df_enr[[col_program, col_enrollments_foreign]], col_program, col_enrollments_foreign)
-    # except:
-    #     df[col_enrollments] = 0
-    #     df[col_enrollments_foreign] = 0
-    #     print("Нет базы по зачисленным или она называется не:\n")
-    #     print(enr_file)
-
-    # # считаем второстепенные столбцы
-    # df[col_leads_total]                            = df[col_leads_partners] + df[col_leads]
-    # df[col_conversion_leads_to_contracts]          = df[col_contracts] / df[col_leads_total]
-    # df[col_needed_applications]              = round(df[col_plan_rus]/ NEEDED_APPLICATIONS_RATIO)
-    # df[col_conversion_applications_to_contracts]   = df[col_contracts] / df[col_applications]
-    # df[col_conversion_contracts_to_payments]       = df[col_payments]  / df[col_contracts]
-    # df[col_conversion_contracts_to_enrollments]    = df[col_enrollments]  / df[col_contracts]
-    # df[col_payments_div_plan_rus]                  = df[col_payments]  / df[col_plan_rus]
-    # df[col_payments_div_plan_foreign]              = df[col_payments_foreign]  / df[col_plan_foreign]
-    # df[col_income_1year]                           = df['price'] * df[col_payments] / 1000 # from thousands to millions
-    # df.loc[df['level'] == 'master', col_income_all]   = df[col_income_1year] * 2
-    # df.loc[df['level'] == 'bachelor', col_income_all] = df[col_income_1year] * 4
-    # # df[col_income_all       ] = df[col_income_1year]  * (2 if df['level'] == 'master' else 4) # TODO check later
-    # df[col_income_1year_hse ] = df[col_income_1year] * df['income_percent'] / 100
-    # df[col_income_all_hse   ] = df[col_income_all]   * df['income_percent'] / 100
-
-    # df.replace(np.inf, 0, inplace=True)
-    # df.fillna(0, inplace=True)
-
-    # return df, df_history
-
-    return dashboard, history
+    tables = collect_bitrix_item_sources(client, sources, batch_size)
+    missing_names = [name for name in REQUIRED_BITRIX_TABLE_NAMES if name not in tables]
+    if missing_names:
+        raise ValueError(f"Bitrix raw tables were not collected: {missing_names}")
+    return BitrixRawTables(
+        deals=tables["deals"],
+        contacts=tables["contacts"],
+        educational_programs=tables["educational_programs"],
+        contracts=tables["contracts"],
+        exams=tables["exams"],
+        portfolios=tables["portfolios"],
+    )
 
 
 def _count_by_program(frame: pd.DataFrame, date_column: str) -> pd.DataFrame:
     filtered = frame.dropna(subset=["program", date_column])
     group_columns = ["program", "program_campus", "program_level", "program_form"]
-    counts = filtered.groupby(group_columns, dropna=False)["program"].count().reset_index(name="values")
-    return counts
+    return filtered.groupby(group_columns, dropna=False)["program"].count().reset_index(name="values")
 
 
 def _count_present_by_program(frame: pd.DataFrame, value_column: str) -> pd.DataFrame:
@@ -317,11 +350,11 @@ def _count_present_by_program(frame: pd.DataFrame, value_column: str) -> pd.Data
     return filtered.groupby(group_columns, dropna=False)["program"].count().reset_index(name="values")
 
 
-def _gender_count_by_program(frame: pd.DataFrame, gender_value: str) -> pd.DataFrame:
+def _gender_count_by_program(frame: pd.DataFrame, gender_values: tuple[str, ...]) -> pd.DataFrame:
     filtered = frame.dropna(subset=["program", "gender"])
     group_columns = ["program", "program_campus", "program_level", "program_form"]
     return (
-        filtered[filtered["gender"] == gender_value]
+        filtered[filtered["gender"].isin(gender_values)]
         .groupby(group_columns, dropna=False)["program"]
         .count()
         .reset_index(name="values")
@@ -367,6 +400,7 @@ def _insert_metric_by_program_identity(
     for left_key, right_key in zip(left_keys, right_keys):
         prepared_dashboard[left_key] = prepared_dashboard[left_key].astype("string").str.strip()
         prepared_metrics[right_key] = prepared_metrics[right_key].astype("string").str.strip()
+
     duplicated_metric_keys = prepared_metrics.duplicated(subset=right_keys, keep=False)
     if duplicated_metric_keys.any():
         duplicated_rows = prepared_metrics.loc[duplicated_metric_keys, right_keys].drop_duplicates().to_dict("records")
@@ -384,6 +418,34 @@ def _insert_metric_by_program_identity(
     )
     merged = merged.sort_values("__dashboard_index")
     return merged["values"].fillna(0).rename(metric_column)
+
+
+def _finalize_dashboard_calculations(dashboard: pd.DataFrame) -> pd.DataFrame:
+    result = dashboard.copy()
+    for column in (col_leads_partners, col_payments_foreign, col_plan_rus, col_plan_foreign):
+        if column not in result.columns:
+            result[column] = 0
+    result.fillna(0, inplace=True)
+
+    result[col_leads_total] = result[col_leads_partners] + result[col_leads]
+    result[col_conversion_leads_to_contracts] = result[col_contracts] / result[col_leads_total]
+    result[col_needed_applications] = round(result[col_plan_rus] / NEEDED_APPLICATIONS_RATIO)
+    result[col_conversion_applications_to_contracts] = result[col_contracts] / result[col_applications]
+    result[col_conversion_contracts_to_payments] = result[col_payments] / result[col_contracts]
+    result[col_conversion_contracts_to_enrollments] = result[col_enrollments] / result[col_contracts]
+    result[col_payments_div_plan_rus] = result[col_payments] / result[col_plan_rus]
+    result[col_payments_div_plan_foreign] = result[col_payments_foreign] / result[col_plan_foreign]
+    result[col_income_1year] = result["price"] * result[col_payments] / 1000
+    result.loc[result["level"] == "master", col_income_all] = result[col_income_1year] * 2
+    result.loc[result["level"] == "bachelor", col_income_all] = result[col_income_1year] * 4
+    result[col_income_1year_hse] = result[col_income_1year] * result["income_percent"] / 100
+    result[col_income_all_hse] = result[col_income_all] * result["income_percent"] / 100
+    if col_enrollments_foreign not in result.columns:
+        result[col_enrollments_foreign] = 0
+
+    result.replace(np.inf, 0, inplace=True)
+    result.fillna(0, inplace=True)
+    return result
 
 
 def apply_bitrix_metrics_to_dashboard(
@@ -416,8 +478,8 @@ def apply_bitrix_metrics_to_dashboard(
         _count_present_by_program(applications, "enrollment_order"),
         col_enrollments,
     )
-    result[col_male] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, "Муж."), col_male)
-    result[col_female] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, "Жен."), col_female)
+    result[col_male] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, MALE_VALUES), col_male)
+    result[col_female] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, FEMALE_VALUES), col_female)
     result[col_ages] = _insert_metric_by_program_identity(result, _age_bars_by_program(applications, as_of), col_ages)
     result[col_ages_mean] = _insert_metric_by_program_identity(result, _age_mean_by_program(applications, as_of), col_ages_mean)
 
@@ -439,3 +501,24 @@ def apply_bitrix_metrics_to_dashboard(
     result.replace(np.inf, 0, inplace=True)
     result.fillna(0, inplace=True)
     return result
+
+
+def process_current_files_from_bitrix(
+    client: BitrixRestClient,
+    sources: Sequence[BitrixItemSource],
+    dashboard_template: pd.DataFrame,
+    as_of: datetime,
+    batch_size: int,
+    history_dataframes: list[pd.DataFrame],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build current dashboard data from Bitrix tables only."""
+
+    raw_tables = collect_bitrix_raw_tables(client, sources, batch_size)
+    admissions_data = normalize_bitrix_admissions_data(raw_tables)
+    dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, admissions_data, as_of)
+    dashboard = _finalize_dashboard_calculations(dashboard)
+    dashboard = dashboard.drop(columns=[column for column in TECHNICAL_DASHBOARD_COLUMNS if column in dashboard.columns])
+    
+    #TODO add history_data processing and general columns in dashboard
+    return dashboard, history_dataframes[0].copy()
+

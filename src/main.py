@@ -19,7 +19,7 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False) -> Pa
     timestamp = datetime.now().strftime("%Y.%m.%d-%H.%M.%S")
     output_path = output_dir / f"dashboard{timestamp}.xlsx"
 
-    debug = None
+    debug = True
     legacy = False # True - ASAV & AIS PK, False - only Bitrix
 
     current_data, history_data = process_current_files(debug, legacy)
@@ -31,4 +31,4 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False) -> Pa
 
 
 if __name__ == "__main__":
-    run_dashboard(count_delta=True, update_dashboard=True)
+    run_dashboard(count_delta=False, update_dashboard=False)

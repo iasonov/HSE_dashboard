@@ -1,6 +1,7 @@
 import glob
 import pandas as pd
 import numpy as np
+from collections.abc import Mapping
 from col_names import *
 from datetime import datetime, timedelta
 
@@ -87,17 +88,17 @@ def process_history_files():
 
         leads_dates_2024_by_program = pd.read_excel(templates_folder + bitrix_file_2024, usecols="J:N") #, parse_dates=[0], date_format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2024_by_program['leads_dates'] = pd.to_datetime(leads_dates_2024_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
-        leads_dates_2024_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
+        leads_dates_2024_by_program[col_programs_names] = leads_dates_2024_by_program[col_programs_names].fillna(main_studyonline)
         
         print('Лиды в привязке к программам 2024 считаны')
 
         leads_dates_2025_by_program = pd.read_excel(templates_folder + bitrix_file_2025) #, parse_dates=[0], date_format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2025_by_program['leads_dates'] = pd.to_datetime(leads_dates_2025_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
-        leads_dates_2025_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
+        leads_dates_2025_by_program[col_programs_names] = leads_dates_2025_by_program[col_programs_names].fillna(main_studyonline)
 
         leads_dates_2025_before_april_by_program = pd.read_excel(templates_folder + bitrix_file_2025_before_april) #, parse_dates=[0], date_format="%d.%m.%Y  %hh:%mm:%ss")
         leads_dates_2025_before_april_by_program['leads_dates'] = pd.to_datetime(leads_dates_2025_before_april_by_program['leads_dates'], errors='coerce', format="%d.%m.%Y  %hh:%mm:%ss")
-        leads_dates_2025_before_april_by_program[col_programs_names].fillna(main_studyonline, inplace=True)
+        leads_dates_2025_before_april_by_program[col_programs_names] = leads_dates_2025_before_april_by_program[col_programs_names].fillna(main_studyonline)
         
 
         print('Лиды в привязке к программам 2025 считаны')
@@ -146,8 +147,6 @@ def process_history_files():
         print(bachelor_2024)
         print(bachelor_2025)
 
-
-
     delta_now_2023 = timedelta(days=365+366+365)
     delta_now_2024 = timedelta(days=365+365)
     delta_now_2025 = timedelta(days=365)
@@ -162,7 +161,7 @@ def process_history_files():
     df_pivot = pd.DataFrame.from_dict({'leads' :
                                 {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
                                  2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count(),
-                                 2025: leads_dates_2025.where(leads_dates_2025 + delta_now_2025 <= now).count()}, #TODO
+                                 2025: leads_dates_2025.where(leads_dates_2025 + delta_now_2025 <= now).count()},
                                 'applications' :
                                 {2023: asav_2023[asav_2023['applications_dates'] + delta_now_2023 <= now]['applications_dates'].count(),
                                  2024: asav_2024[asav_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count() + bachelor_2024[bachelor_2024['applications_dates'] + delta_now_2024 <= now]['applications_dates'].count(),
@@ -758,9 +757,49 @@ def process_current_files_legacy(debug=None):
     return df, df_history
 
 
-def process_current_files(debug=None, legacy=None):
+def _load_dashboard_template(templates_folder: str) -> pd.DataFrame:
+    programs_file = "programs.xlsx"
+    template_file = "template.xlsx"
+    df_online_programs = pd.read_excel(templates_folder + programs_file)
+    df_online_programs = df_online_programs[df_online_programs["format"] != "offline"].reset_index(drop=True)
+    df_dashboard_template = pd.read_excel(templates_folder + template_file)
+    return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
+
+
+def _load_bitrix_entity_type_ids(entity_type_ids: Mapping[str, int] | None) -> Mapping[str, int]:
+    if entity_type_ids is not None:
+        return entity_type_ids
+    try:
+        from my_secrets import secrets
+    except ImportError as error:
+        raise ValueError("Set BITRIX_ENTITY_TYPE_IDS in my_secrets.py or pass entity_type_ids explicitly") from error
+    loaded_entity_type_ids = secrets.get("BITRIX_ENTITY_TYPE_IDS")
+    if not isinstance(loaded_entity_type_ids, Mapping):
+        raise ValueError("Set secrets['BITRIX_ENTITY_TYPE_IDS'] with Bitrix entity type IDs")
+    return loaded_entity_type_ids
+
+
+def process_current_files(debug=None, legacy=None, entity_type_ids: Mapping[str, int] | None = None):
     if legacy:
         return process_current_files_legacy(debug)
+
+    from bitrix import BITRIX_BATCH_LIMIT, BITRIX_WEBHOOK_URL, create_bitrix_client
+    from bitrix_pipeline import create_bitrix_admissions_sources, process_current_files_from_bitrix
+
+    templates_folder = "templates/"
+    dashboard_template = _load_dashboard_template(templates_folder)
+    bitrix_entity_type_ids = _load_bitrix_entity_type_ids(entity_type_ids)
+    client = create_bitrix_client(BITRIX_WEBHOOK_URL)
+    sources = create_bitrix_admissions_sources(bitrix_entity_type_ids)
+    if not debug:
+        history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev = process_history_files() # TODO df_pivot, df_leads_all_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev
     else:
-        from bitrix_pipeline import process_current_files_from_bitrix
-        return process_current_files_from_bitrix(debug)
+        history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev = [pd.DataFrame() for _ in range(5)]
+    return process_current_files_from_bitrix(
+        client=client,
+        sources=sources,
+        dashboard_template=dashboard_template,
+        as_of=datetime.now(),
+        batch_size=BITRIX_BATCH_LIMIT,
+        history_dataframes=[history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev],
+    )

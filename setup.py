@@ -7,6 +7,8 @@ setup(
     install_requires=[
         "pandas",
         "requests",
+        "pysocks",
+        "urllib3",
         "gspread",
         "oauth2client",
     ],
