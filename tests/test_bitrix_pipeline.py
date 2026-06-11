@@ -20,7 +20,7 @@ from col_names import (
     col_program,
 )
 
-
+# TODO repair test
 class TestBitrixPipeline(unittest.TestCase):
     def test_normalize_bitrix_admissions_data_maps_core_fields(self) -> None:
         raw_tables = BitrixRawTables(
@@ -90,6 +90,7 @@ class TestBitrixPipeline(unittest.TestCase):
         self.assertEqual(result.exams.iloc[0]["program"], "Финансы")
         self.assertEqual(result.portfolios.iloc[0]["program"], "Финансы")
 
+    # TODO repair test
     def test_apply_bitrix_metrics_to_dashboard_counts_date_based_metrics(self) -> None:
         admissions = normalize_bitrix_admissions_data(
             BitrixRawTables(

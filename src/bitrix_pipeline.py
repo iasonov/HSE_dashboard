@@ -60,9 +60,10 @@ class BitrixRawTables:
     deals: pd.DataFrame
     contacts: pd.DataFrame
     educational_programs: pd.DataFrame
-    contracts: pd.DataFrame
-    exams: pd.DataFrame
-    portfolios: pd.DataFrame
+    # TODO uncomment
+    # contracts: pd.DataFrame
+    # exams: pd.DataFrame
+    # portfolios: pd.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,10 +80,10 @@ NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
     "contact_id",
     "program_id",
     "program",
-    "program_shortname",
-    "program_campus",
-    "program_level",
-    "program_form",
+    # "program_shortname", # TODO uncomment
+    # "program_campus",
+    # "program_level",
+    # "program_form",
     "application_date",
     "contract_date",
     "payment_date",
@@ -94,7 +95,7 @@ REQUIRED_BITRIX_TABLE_NAMES = (
     "deals",
     "contacts",
     "educational_programs",
-    "contracts",
+    # "contracts",
     # "exams",
     # "portfolios",
 )
@@ -118,7 +119,7 @@ def _as_text_series(series: pd.Series) -> pd.Series:
 
 
 def _as_datetime_series(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, errors="coerce", dayfirst=True)
+    return pd.to_datetime(series, errors="raise", dayfirst=True) # may be coerce?
 
 
 def _payment_dates_by_deal(contracts: pd.DataFrame) -> pd.DataFrame:
@@ -137,32 +138,33 @@ def _normalize_applications(raw_tables: BitrixRawTables) -> pd.DataFrame:
     _require_columns(raw_tables.contacts, BITRIX_CONTACTS)
     _require_columns(raw_tables.educational_programs, BITRIX_EDUCATIONAL_PROGRAMS)
 
-    deals = raw_tables.deals.copy()
-    deals["deal_id"] = _as_text_series(deals["idaispk"])
-    deals["contact_id"] = _as_text_series(deals["idcontact"])
-    deals["program_id"] = _as_text_series(deals["idop"])
-    deals["application_date"] = _as_datetime_series(deals["date_registrationaispk"])
-    deals["contract_date"] = _as_datetime_series(deals["date_dogovora"])
-    deals["enrollment_order"] = _as_text_series(deals["prikaz_zachislenya"])
+    deals = raw_tables.deals.copy() # START strange things with convertion, NaN & NaT
+    deals["deal_id"] = _as_text_series(deals["id"])
+    deals["contact_id"] = _as_text_series(deals["contactId"])
+    deals["program_id"] = _as_text_series(deals["ufDealEducationProgram"])
+    deals["application_date"] = _as_datetime_series(deals["ufDealDataRegistracii"]) # TODO check
+    deals["contract_date"] = _as_datetime_series(deals["ufDealContractdate"])
+    deals["enrollment_order"] = _as_text_series(deals["ufDealPrikazOZachislenii"])
 
     contacts = raw_tables.contacts.copy()
-    contacts["contact_id"] = _as_text_series(contacts["idaispk"])
-    contacts["gender"] = _as_text_series(contacts["pol"])
+    contacts["contact_id"] = _as_text_series(contacts["id"])
+    contacts["gender"] = [] #_as_text_series(contacts["pol"]) # TODO complete gender
     contacts["birthdate"] = _as_datetime_series(contacts["birthdate"])
 
     programs = raw_tables.educational_programs.copy()
-    programs["program_id"] = _as_text_series(programs["idaispk"])
-    programs["program"] = _as_text_series(programs["name"])
-    programs["program_level"] = _as_text_series(programs["uroven_obrazovanya"])
-    programs["program_campus"] = _as_text_series(programs["campus"])
-    if "shortname" not in programs.columns:
-        programs["shortname"] = programs["name"]
-    if "forma_obuchenya" not in programs.columns:
-        programs["forma_obuchenya"] = ""
-    programs["program_shortname"] = _as_text_series(programs["shortname"])
-    programs["program_form"] = _as_text_series(programs["forma_obuchenya"])
+    programs["program_id"] = _as_text_series(programs["ID"])
+    programs["program"] = _as_text_series(programs["NAME"])
+    # programs["program_level"] = _as_text_series(programs["uroven_obrazovanya"]) # TODO get from deal
+    # programs["program_campus"] = _as_text_series(programs["campus"]) # TODO get from deal
+    # if "shortname" not in programs.columns:
+    #     programs["shortname"] = programs["name"]
+    # if "forma_obuchenya" not in programs.columns:
+    #     programs["forma_obuchenya"] = ""
+    # programs["program_shortname"] = _as_text_series(programs["shortname"])
+    # programs["program_form"] = _as_text_series(programs["forma_obuchenya"])
 
-    payments = _payment_dates_by_deal(raw_tables.contracts)
+    # TODO complete contracts
+    # payments = _payment_dates_by_deal(raw_tables.contracts)
     applications = (
         deals.merge(
             contacts.loc[:, ["contact_id", "gender", "birthdate"]],
@@ -176,17 +178,17 @@ def _normalize_applications(raw_tables: BitrixRawTables) -> pd.DataFrame:
                 [
                     "program_id",
                     "program",
-                    "program_shortname",
-                    "program_campus",
-                    "program_level",
-                    "program_form",
+                    # "program_shortname",
+                    # "program_campus",
+                    # "program_level",
+                    # "program_form",
                 ],
             ],
             how="left",
             on="program_id",
             validate="many_to_one",
         )
-        .merge(payments, how="left", on="deal_id", validate="one_to_one")
+        #.merge(payments, how="left", on="deal_id", validate="one_to_one")
     )
     return applications.loc[:, NORMALIZED_APPLICATION_COLUMNS]
 
@@ -320,10 +322,11 @@ def collect_bitrix_raw_tables(
     client: BitrixRestClient,
     sources: Sequence[BitrixItemSource],
     batch_size: int,
+    debug: bool = False
 ) -> BitrixRawTables:
     """Collect Bitrix admissions item sources into the raw-table container."""
 
-    tables = collect_bitrix_item_sources(client, sources, batch_size)
+    tables = collect_bitrix_item_sources(client, sources, batch_size, debug)
     missing_names = [name for name in REQUIRED_BITRIX_TABLE_NAMES if name not in tables]
     if missing_names:
         raise ValueError(f"Bitrix raw tables were not collected: {missing_names}")
@@ -331,9 +334,10 @@ def collect_bitrix_raw_tables(
         deals=tables["deals"],
         contacts=tables["contacts"],
         educational_programs=tables["educational_programs"],
-        contracts=tables["contracts"],
-        exams=tables["exams"],
-        portfolios=tables["portfolios"],
+        # TODO in future
+        # contracts=tables["contracts"],
+        # exams=tables["exams"],
+        # portfolios=tables["portfolios"],
     )
 
 
@@ -510,10 +514,11 @@ def process_current_files_from_bitrix(
     as_of: datetime,
     batch_size: int,
     history_dataframes: list[pd.DataFrame],
+    debug: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build current dashboard data from Bitrix tables only."""
 
-    raw_tables = collect_bitrix_raw_tables(client, sources, batch_size)
+    raw_tables = collect_bitrix_raw_tables(client, sources, batch_size, debug)
     admissions_data = normalize_bitrix_admissions_data(raw_tables)
     dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, admissions_data, as_of)
     dashboard = _finalize_dashboard_calculations(dashboard)

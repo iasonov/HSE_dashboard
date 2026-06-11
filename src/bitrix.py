@@ -210,6 +210,14 @@ def get_deal_category_id(category_name: str, client: BitrixRestClient) -> int:
             return int(category.get("id") or category.get("ID"))
     raise ValueError(f"Deal funnel {category_name!r} was not found")
 
+# Get all lists with 
+# base_params: dict[str, Any] = {
+#     "IBLOCK_TYPE_ID" : "lists",
+# }
+# return _list_dataframe(client, "lists.get", "items", base_params, batch_size)
+# 
+# [{key: d[key]} for d in first_result for key in ['ID', 'CODE', 'API_CODE', 'NAME']]: 
+# [{'ID': '43'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Сферы интересов'}, {'ID': '39'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Категория пользователя'}, {'ID': '38'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Совокупность конкурсных групп'}, {'ID': '35'}, {'CODE': 'rannee priglashenie'}, {'API_CODE': 'ranneepriglashenie'}, {'NAME': 'Раннее приглашение'}, {'ID': '26'}, {'CODE': 'formy oprosa na portale'}, {'API_CODE': 'formyoprosanaportale'}, {'NAME': 'Формы опроса на портале'}, {'ID': '24'}, {'CODE': 'forma obucheniya'}, {'API_CODE': 'formaobucheniya'}, {'NAME': 'Форма обучения'}, {'ID': '23'}, {'CODE': 'kampusy'}, {'API_CODE': 'kampusy'}, {'NAME': 'Кампусы'}, {'ID': '22'}, {'CODE': 'fakultety'}, {'API_CODE': 'fakultety'}, {'NAME': 'Факультеты'}, {'ID': '21'}, {'CODE': 'obrazovatelnye programmy'}, {'API_CODE': 'obrazovatelnyeprogrammy'}, {'NAME': 'Образовательные программы'}, {'ID': '20'}, {'CODE': 'urovni obrazovaniya'}, {'API_CODE': 'urovniobrazovaniya'}, {'NAME': 'Уровни образования'}, {'ID': '18'}, {'CODE': 'strany'}, {'API_CODE': 'strany'}, {'NAME': 'Страны'}, {'ID': '17'}, {'CODE': 'goroda'}, {'API_CODE': 'goroda'}, {'NAME': 'Города'}, {'ID': '16'}, {'CODE': 'nabor na uchebnyj god'}, {'API_CODE': 'nabornauchebnyjgod'}, {'NAME': 'Набор на учебный год'}, {'ID': '5'}, {'CODE': 'clients_s1'}, {'API_CODE': None}, {'NAME': 'Клиенты'}]
 
 def _list_dataframe(
     client: BitrixRestClient,
@@ -217,12 +225,13 @@ def _list_dataframe(
     result_key: str,
     base_params: Mapping[str, Any],
     batch_size: int,
+    debug: bool = False
 ) -> pd.DataFrame:
     first_response = client.call(method, {**base_params, "start": 0})
     first_result = first_response.get("result", [])
     rows = list(first_result.get(result_key, []) if isinstance(first_result, Mapping) else first_result)
     total = int(first_response.get("total", len(rows)))
-    if total <= BITRIX_PAGE_SIZE:
+    if total <= BITRIX_PAGE_SIZE or debug:
         return pd.DataFrame(rows)
 
     max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
@@ -286,22 +295,39 @@ def collect_crm_items_dataframe(
     select: Sequence[str],
     extra_filter: Mapping[str, Any],
     batch_size: int,
+    debug: bool = False
 ) -> pd.DataFrame:
     """Collect Bitrix dynamic CRM items by entity type ID."""
 
-    base_params: dict[str, Any] = {
-        "entityTypeId": entity_type_id,
-        "select": ["*"], # TODO debug list(select),
-        "filter": dict(extra_filter),
-        "order": {"id": "ASC"},
-    }
-    return _list_dataframe(client, "crm.item.list", "items", base_params, batch_size)
+    if entity_type_id in [1, 2, 3, 4, 5, 31, 7, 8, 36, 39]:
+        # return pd.DataFrame() # for debug
+        rest_request = "crm.item.list"
+        base_params: dict[str, Any] = {
+            "entityTypeId": entity_type_id,
+            "select": ["*"], # TODO list(select), now for the case of problem
+            "filter": dict(extra_filter),
+            "order": {"id": "ASC"},
+        }
+        
+    else: 
+        rest_request = "lists.element.get"
+        base_params: dict[str, Any] = {
+            "IBLOCK_TYPE_ID" : "lists",
+            "IBLOCK_ID": entity_type_id,
+            # "SELECT" : ["*"],
+            # "FILTER" : dict(extra_filter), 
+            "ELEMENT_ORDER": {"id": "ASC"},
+        }
 
+        
+    return _list_dataframe(client, rest_request, "items", base_params, batch_size, debug)
+# TODO make list+get (faster version) https://habr.com/ru/articles/537694/
 
 def collect_bitrix_item_sources(
     client: BitrixRestClient,
     sources: Sequence[BitrixItemSource],
     batch_size: int,
+    debug: bool = False
 ) -> dict[str, pd.DataFrame]:
     """Collect configured Bitrix dynamic CRM item sources."""
 
@@ -313,5 +339,6 @@ def collect_bitrix_item_sources(
             source.select,
             source.extra_filter,
             batch_size,
+            debug
         )
     return tables

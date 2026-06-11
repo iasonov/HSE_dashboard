@@ -16,8 +16,9 @@ class BitrixEntity:
 
 BITRIX_DEALS = BitrixEntity(
     name="deals",
-    id_field="idaispk",
+    id_field="id",
     required_fields=(
+        "id",
         # "idaispk",
         # "idcontact",
         # "idop",
@@ -43,6 +44,7 @@ BITRIX_DEALS = BitrixEntity(
         "closed",
         "sourceId",
         "lastCommunicationTime", # TODO check последнее ли это время связи
+        "ufDealEducationProgram", # TODO check
         "ufDealUrlOp",
         "ufDealYearAdmission", # год подачи?
         "ufDealRanneePriglashenie", # РП?
@@ -70,18 +72,35 @@ BITRIX_DEALS = BitrixEntity(
         # 'Дата проведения оплаты': 'PAYMENT_PAID',
         # 'Товар': 'PRODUCT_ROW_PRODUCT_ID',
         # 'Дата регистрации': 'UF_DEAL_DATA_REGISTRACII',
+        # 'Программа': 'UF_DEAL_EDUCATION_PROGRAM'
     ),
 )
 BITRIX_CONTACTS = BitrixEntity(
     name="contacts",
-    id_field="idaispk",
-    required_fields=("idaispk", "pol", "birthdate"), # TODO idgrazhdanstvo, idstrana_prozhivanya, inostranec
+    id_field="id",
+    required_fields=(
+        "id",
+        "createdTime",
+        "updatedTime",
+        "createdBy",
+        "updatedBy",
+        "assignedById", # id менеджера 
+        "sourceId",
+        "name",
+        "comments",
+        "leadId",
+        "categoryId",
+        #"pol", "birthdate",
+        "utmSource", # +Medium,...
+        "ufContactUinAispk",
+        "ufContactRanneePriglashenie",
+    ), # TODO idgrazhdanstvo, idstrana_prozhivanya, inostranec
 
 )
 BITRIX_EDUCATIONAL_PROGRAMS = BitrixEntity(
     name="educational_programs",
-    id_field="idaispk",
-    required_fields=("idaispk", "name", "uroven_obrazovanya", "campus"), # TODO tip_op, facultet
+    id_field="id",
+    required_fields=("ID", "NAME",), # TODO tip_op, facultet  "uroven_obrazovanya", "campus"
 
 )
 BITRIX_CONTRACTS = BitrixEntity(

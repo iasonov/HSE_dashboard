@@ -802,4 +802,5 @@ def process_current_files(debug=None, legacy=None, entity_type_ids: Mapping[str,
         as_of=datetime.now(),
         batch_size=BITRIX_BATCH_LIMIT,
         history_dataframes=[history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev],
+        debug=debug
     )
