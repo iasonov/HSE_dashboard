@@ -4,20 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from collections.abc import Mapping
+from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class BitrixEntity:
     """Describe one Bitrix admissions entity table."""
 
     name: str
-    id_field: str
-    required_fields: tuple[str, ...]
+    id_field: str # TODO check - is it needed?
+    select_name: str                    # "select" or "SELECT" # TODO test with different case/CASE 
+    filter_name: str                    # "filter" or "FILTER" # TODO test with different case/CASE
+    select: tuple[str, ...]             # what information to get
+    extra_filter: Mapping[str, Any]     # extra filters for select
+    request_id: int                     # number id of table
+    request_rest: str                   # name of request method
+    request_base_params: dict[str, Any] # base request parameter except select and filter
 
 
-BITRIX_DEALS = BitrixEntity(
-    name="deals",
+# Поступление 360
+BITRIX_CRM_DEALS = BitrixEntity(
+    name="crm_deals",
     id_field="id",
-    required_fields=(
+    request_id=4, # воронка "Поступление 360"
+    select_name="select",
+    filter_name="filter",
+    select=(
         "id",
         # "idaispk",
         # "idcontact",
@@ -74,11 +86,62 @@ BITRIX_DEALS = BitrixEntity(
         # 'Дата регистрации': 'UF_DEAL_DATA_REGISTRACII',
         # 'Программа': 'UF_DEAL_EDUCATION_PROGRAM'
     ),
+    extra_filter={"CATEGORY_ID" : 4},
+  
+    request_rest="crm.item.list",
+    request_base_params={
+        "entityTypeId": 2,  # 2 - сделки
+        # "select": ["*"], # TODO list(select), now for the case of problem
+        # "filter": dict(extra_filter),
+        "order": {"id": "ASC"},
+    },
 )
+
+# Портал ВШЭ
+BITRIX_PORTAL_DEALS = BitrixEntity(
+    name="portal_deals",
+    id_field="id",
+    select_name="select",
+    filter_name="filter",
+    select=BITRIX_CRM_DEALS.select,
+    extra_filter={"CATEGORY_ID" : 2},
+    
+    request_id=2, # 2 - Воронка "Портал ВШЭ"
+    request_rest="crm.item.list",
+    request_base_params={
+        "entityTypeId": 2,  # 2 - сделки
+        # "select": ["*"], # TODO list(select), now for the case of problem
+        # "filter": dict(extra_filter),
+        "order": {"id": "ASC"},
+    },
+)
+
+# АСАВ и АИС ПК - маг/бак
+BITRIX_APPLICATIONS = BitrixEntity(
+    name="applications",
+    id_field="id",
+    select_name="select",
+    filter_name="filter",
+    select=BITRIX_CRM_DEALS.select,
+    extra_filter={"CATEGORY_ID" : 1},
+    
+    request_id=1, # 1- Воронка "ОНЛАЙН МАГ/БАК"
+    request_rest="crm.item.list",
+    request_base_params={
+        "entityTypeId": 2,  # 2 - сделки
+        # "select": ["*"], # TODO list(select), now for the case of problem
+        # "filter": dict(extra_filter),
+        "order": {"id": "ASC"},
+    },
+)
+
 BITRIX_CONTACTS = BitrixEntity(
     name="contacts",
     id_field="id",
-    required_fields=(
+    select_name="select",
+    filter_name="filter",
+    request_id=3, #TODO check
+    select=(
         "id",
         "createdTime",
         "updatedTime",
@@ -95,36 +158,60 @@ BITRIX_CONTACTS = BitrixEntity(
         "ufContactUinAispk",
         "ufContactRanneePriglashenie",
     ), # TODO idgrazhdanstvo, idstrana_prozhivanya, inostranec
-
+    
+    extra_filter={},
+  
+    request_rest="crm.item.list",
+    request_base_params={
+            "entityTypeId": 3,  # 3 - контакты
+            # "select": ["*"], # TODO list(select), now for the case of problem
+            # "filter": dict(extra_filter),
+            "order": {"id": "ASC"},
+    },
 )
+
+# https://apidocs.bitrix24.ru/api-reference/lists/elements/lists-element-get.html
 BITRIX_EDUCATIONAL_PROGRAMS = BitrixEntity(
     name="educational_programs",
     id_field="id",
-    required_fields=("ID", "NAME",), # TODO tip_op, facultet  "uroven_obrazovanya", "campus"
-
+    select_name="SELECT",
+    filter_name="FILTER",
+    select=("ID", "NAME",), # TODO tip_op, facultet  "uroven_obrazovanya", "campus"
+    extra_filter={},
+    request_id=21, #TODO check
+    request_rest="lists.element.get",
+    request_base_params={
+        "IBLOCK_TYPE_ID" : "lists",
+        "IBLOCK_ID": 21, #request_id
+        # "SELECT" : ("ID", "NAME",), #select #TODO Check
+        # "FILTER" : dict(extra_filter), 
+        "ELEMENT_ORDER": {"id": "ASC"},
+    },
 )
-BITRIX_CONTRACTS = BitrixEntity(
-    name="contracts",
-    id_field="idaispk",
-    required_fields=("idaispk", "iddeal", "data_oplaty"), # TODO istochnik, datetimecreate, idregion_prozhivanya
-)
-BITRIX_EXAMS = BitrixEntity(
-    name="exams",
-    id_field="idaispk",
-    required_fields=("idaispk", "idcontact", "iddeal", "ball", "date_testirovanya", "aktive"),
-)
-BITRIX_PORTFOLIOS = BitrixEntity(
-    name="portfolios",
-    id_field="idaispk",
-    required_fields=("idaispk", "idcontact", "iddeal", "idtovar", "status_elementa_portfolio"),
-)
+# BITRIX_CONTRACTS = BitrixEntity(
+#     name="contracts",
+#     id_field="idaispk",
+#     required_fields=("idaispk", "iddeal", "data_oplaty"), # TODO istochnik, datetimecreate, idregion_prozhivanya
+# )
+# BITRIX_EXAMS = BitrixEntity(
+#     name="exams",
+#     id_field="idaispk",
+#     required_fields=("idaispk", "idcontact", "iddeal", "ball", "date_testirovanya", "aktive"),
+# )
+# BITRIX_PORTFOLIOS = BitrixEntity(
+#     name="portfolios",
+#     id_field="idaispk",
+#     required_fields=("idaispk", "idcontact", "iddeal", "idtovar", "status_elementa_portfolio"),
+# )
 
 BITRIX_ADMISSIONS_ENTITIES: tuple[BitrixEntity, ...] = (
-    BITRIX_DEALS,
+    BITRIX_CRM_DEALS,
+    BITRIX_PORTAL_DEALS,
+    BITRIX_APPLICATIONS,
     BITRIX_CONTACTS,
     BITRIX_EDUCATIONAL_PROGRAMS,
-    BITRIX_CONTRACTS,
-    BITRIX_EXAMS,
-    BITRIX_PORTFOLIOS,
+    # BITRIX_CONTRACTS,
+    # BITRIX_EXAMS,
+    # BITRIX_PORTFOLIOS,
 )
 

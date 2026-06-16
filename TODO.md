@@ -1,4 +1,17 @@
 # 2026
+## Текущая разработка
+Поля нужные считываются, пока лимит в 10 запросов, чтобы не грузить систему.
+Что надо сделать:
+1) Объединить все 5 таблицв единую таблицу в _normalize_and_merge_raw_data
+2) Прогнать ее через все нужные расчеты (возможно - отфильтровать с 1.10)
+3) Увеличить запросы до 50 и повторить
+4) Подключить исторические расчеты
+5) Подумать как при запросе сразу фильровать по дате, чтобы грузить только нужное
+6) Замедлить запросы, чтобы не нагружать сервер + спросить у Александра заметно ли замедление
+7) Отключить дебаг-режим и поработать на всей базе
+8) Пройтись по всем TODO
+9) Изучить сколько пропусков в ufDealEducationProgram и можно ли их заполнить
+
 ## Features
 [ ] get data from Bitrix by API
 [ ] append new programs and convert to csv
@@ -19,6 +32,7 @@
 [x] bar for each program of gosuslugi
 
 ## Technical debt
+[ ] fill n/a in ufDealEducationProgram
 [ ] refactor old years using AI and compare it with tests with different dates
 [ ] delete unused files
 [x] change bachelor of design fee to 420 and ПРВИС to 500

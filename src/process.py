@@ -766,17 +766,17 @@ def _load_dashboard_template(templates_folder: str) -> pd.DataFrame:
     return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
 
 
-def _load_bitrix_entity_type_ids(entity_type_ids: Mapping[str, int] | None) -> Mapping[str, int]:
-    if entity_type_ids is not None:
-        return entity_type_ids
-    try:
-        from my_secrets import secrets
-    except ImportError as error:
-        raise ValueError("Set BITRIX_ENTITY_TYPE_IDS in my_secrets.py or pass entity_type_ids explicitly") from error
-    loaded_entity_type_ids = secrets.get("BITRIX_ENTITY_TYPE_IDS")
-    if not isinstance(loaded_entity_type_ids, Mapping):
-        raise ValueError("Set secrets['BITRIX_ENTITY_TYPE_IDS'] with Bitrix entity type IDs")
-    return loaded_entity_type_ids
+# def _load_bitrix_entity_type_ids(entity_type_ids: Mapping[str, int] | None) -> Mapping[str, int]:
+#     if entity_type_ids is not None:
+#         return entity_type_ids
+#     try:
+#         from my_secrets import secrets
+#     except ImportError as error:
+#         raise ValueError("Set BITRIX_ENTITY_TYPE_IDS in my_secrets.py or pass entity_type_ids explicitly") from error
+#     loaded_entity_type_ids = secrets.get("BITRIX_ENTITY_TYPE_IDS")
+#     if not isinstance(loaded_entity_type_ids, Mapping):
+#         raise ValueError("Set secrets['BITRIX_ENTITY_TYPE_IDS'] with Bitrix entity type IDs")
+#     return loaded_entity_type_ids
 
 
 def process_current_files(debug=None, legacy=None, entity_type_ids: Mapping[str, int] | None = None):
@@ -784,13 +784,14 @@ def process_current_files(debug=None, legacy=None, entity_type_ids: Mapping[str,
         return process_current_files_legacy(debug)
 
     from bitrix import BITRIX_BATCH_LIMIT, BITRIX_WEBHOOK_URL, create_bitrix_client
-    from bitrix_pipeline import create_bitrix_admissions_sources, process_current_files_from_bitrix
+    from bitrix_pipeline import process_current_files_from_bitrix # create_bitrix_admissions_sources
+    from contracts import BITRIX_ADMISSIONS_ENTITIES
 
     templates_folder = "templates/"
     dashboard_template = _load_dashboard_template(templates_folder)
-    bitrix_entity_type_ids = _load_bitrix_entity_type_ids(entity_type_ids)
+    # bitrix_entity_type_ids = _load_bitrix_entity_type_ids(entity_type_ids)
     client = create_bitrix_client(BITRIX_WEBHOOK_URL)
-    sources = create_bitrix_admissions_sources(bitrix_entity_type_ids)
+    sources = BITRIX_ADMISSIONS_ENTITIES # create_bitrix_admissions_sources() # bitrix_entity_type_ids
     if not debug:
         history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev = process_history_files() # TODO df_pivot, df_leads_all_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev
     else:

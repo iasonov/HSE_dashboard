@@ -9,7 +9,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from bitrix import BitrixItemSource, BitrixRestClient, collect_bitrix_item_sources
+from bitrix import BitrixRestClient, collect_bitrix_item_sources
 from col_names import (
     col_ages,
     col_ages_mean,
@@ -43,11 +43,14 @@ from col_names import (
 )
 from contracts import (
     BITRIX_CONTACTS,
-    BITRIX_CONTRACTS,
-    BITRIX_DEALS,
+    BITRIX_CRM_DEALS,
+    BITRIX_PORTAL_DEALS,
+    BITRIX_APPLICATIONS,
     BITRIX_EDUCATIONAL_PROGRAMS,
-    BITRIX_EXAMS,
-    BITRIX_PORTFOLIOS,
+    BITRIX_ADMISSIONS_ENTITIES,
+    # BITRIX_CONTRACTS,
+    # BITRIX_EXAMS,
+    # BITRIX_PORTFOLIOS,
     BitrixEntity,
 )
 from process import categorize_ages, insert_values, num_years, process_by_week
@@ -57,7 +60,9 @@ from process import categorize_ages, insert_values, num_years, process_by_week
 class BitrixRawTables:
     """Raw Bitrix admissions tables exported from CRM."""
 
-    deals: pd.DataFrame
+    crm_deals: pd.DataFrame
+    portal_deals: pd.DataFrame
+    applications: pd.DataFrame
     contacts: pd.DataFrame
     educational_programs: pd.DataFrame
     # TODO uncomment
@@ -66,13 +71,13 @@ class BitrixRawTables:
     # portfolios: pd.DataFrame
 
 
-@dataclass(frozen=True, slots=True)
-class NormalizedBitrixAdmissionsData:
-    """Normalized Bitrix admissions tables used by dashboard aggregations."""
+# @dataclass(frozen=True, slots=True)
+# class NormalizedBitrixAdmissionsData:
+#     """Normalized Bitrix admissions tables used by dashboard aggregations."""
 
-    applications: pd.DataFrame
-    exams: pd.DataFrame
-    portfolios: pd.DataFrame
+#     applications: pd.DataFrame
+#     exams: pd.DataFrame
+#     portfolios: pd.DataFrame
 
 
 NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
@@ -91,17 +96,21 @@ NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
     "gender",
     "birthdate",
 )
-REQUIRED_BITRIX_TABLE_NAMES = (
-    "deals",
-    "contacts",
-    "educational_programs",
-    # "contracts",
-    # "exams",
-    # "portfolios",
-)
-OPTIONAL_ENTITY_SELECT_FIELDS: Mapping[str, tuple[str, ...]] = {
-    "educational_programs": ("shortname", "forma_obuchenya"),
-}
+
+REQUIRED_BITRIX_TABLE_NAMES = tuple(item.name for item in BITRIX_ADMISSIONS_ENTITIES) 
+# (
+#     "crm_deals",
+#     "contacts",
+#     "educational_programs",
+#     "portal_deals",
+#     "aispk_applications",
+#     # "contracts",
+#     # "exams",
+#     # "portfolios",
+# )
+# OPTIONAL_ENTITY_SELECT_FIELDS: Mapping[str, tuple[str, ...]] = {
+#     "educational_programs": ("shortname", "forma_obuchenya"),
+# }
 TECHNICAL_DASHBOARD_COLUMNS = ("program_bitrix", "tg_chat_id", "campus", "start_year", "format")
 NEEDED_APPLICATIONS_RATIO = 45 / 100
 MALE_VALUES = ("Муж.", "ÐœÑƒÐ¶.")
@@ -109,7 +118,7 @@ FEMALE_VALUES = ("Жен.", "Ð–ÐµÐ½.")
 
 
 def _require_columns(frame: pd.DataFrame, entity: BitrixEntity) -> None:
-    missing_columns = [column for column in entity.required_fields if column not in frame.columns]
+    missing_columns = [column for column in entity.select if column not in frame.columns]
     if missing_columns:
         raise ValueError(f"Bitrix table {entity.name!r} is missing required columns: {missing_columns}")
 
@@ -122,23 +131,25 @@ def _as_datetime_series(series: pd.Series) -> pd.Series:
     return pd.to_datetime(series, errors="raise", dayfirst=True) # may be coerce?
 
 
-def _payment_dates_by_deal(contracts: pd.DataFrame) -> pd.DataFrame:
-    _require_columns(contracts, BITRIX_CONTRACTS)
-    prepared = contracts.loc[:, ["iddeal", "data_oplaty"]].copy()
-    prepared["deal_id"] = _as_text_series(prepared["iddeal"])
-    prepared["payment_date"] = _as_datetime_series(prepared["data_oplaty"])
-    prepared = prepared.dropna(subset=["deal_id", "payment_date"])
-    if prepared.empty:
-        return pd.DataFrame(columns=["deal_id", "payment_date"])
-    return prepared.groupby("deal_id", as_index=False)["payment_date"].min()
+# def _payment_dates_by_deal(contracts: pd.DataFrame) -> pd.DataFrame:
+#     _require_columns(contracts, BITRIX_CONTRACTS)
+#     prepared = contracts.loc[:, ["iddeal", "data_oplaty"]].copy()
+#     prepared["deal_id"] = _as_text_series(prepared["iddeal"])
+#     prepared["payment_date"] = _as_datetime_series(prepared["data_oplaty"])
+#     prepared = prepared.dropna(subset=["deal_id", "payment_date"])
+#     if prepared.empty:
+#         return pd.DataFrame(columns=["deal_id", "payment_date"])
+#     return prepared.groupby("deal_id", as_index=False)["payment_date"].min()
 
 
-def _normalize_applications(raw_tables: BitrixRawTables) -> pd.DataFrame:
-    _require_columns(raw_tables.deals, BITRIX_DEALS)
+def _normalize_and_merge_raw_data(raw_tables: BitrixRawTables) -> pd.DataFrame:
+    _require_columns(raw_tables.crm_deals, BITRIX_CRM_DEALS)
+    _require_columns(raw_tables.portal_deals, BITRIX_PORTAL_DEALS)
+    _require_columns(raw_tables.applications, BITRIX_APPLICATIONS)
     _require_columns(raw_tables.contacts, BITRIX_CONTACTS)
     _require_columns(raw_tables.educational_programs, BITRIX_EDUCATIONAL_PROGRAMS)
 
-    deals = raw_tables.deals.copy() # START strange things with convertion, NaN & NaT
+    deals = raw_tables.crm_deals.copy() # START strange things with convertion, NaN & NaT
     deals["deal_id"] = _as_text_series(deals["id"])
     deals["contact_id"] = _as_text_series(deals["contactId"])
     deals["program_id"] = _as_text_series(deals["ufDealEducationProgram"])
@@ -148,7 +159,7 @@ def _normalize_applications(raw_tables: BitrixRawTables) -> pd.DataFrame:
 
     contacts = raw_tables.contacts.copy()
     contacts["contact_id"] = _as_text_series(contacts["id"])
-    contacts["gender"] = [] #_as_text_series(contacts["pol"]) # TODO complete gender
+    # contacts["gender"] = _as_text_series(contacts["pol"]) # TODO complete gender
     contacts["birthdate"] = _as_datetime_series(contacts["birthdate"])
 
     programs = raw_tables.educational_programs.copy()
@@ -193,77 +204,80 @@ def _normalize_applications(raw_tables: BitrixRawTables) -> pd.DataFrame:
     return applications.loc[:, NORMALIZED_APPLICATION_COLUMNS]
 
 
-def _normalize_exams(exams: pd.DataFrame, applications: pd.DataFrame) -> pd.DataFrame:
-    _require_columns(exams, BITRIX_EXAMS)
-    prepared = exams.copy()
-    prepared["deal_id"] = _as_text_series(prepared["iddeal"])
-    prepared["contact_id"] = _as_text_series(prepared["idcontact"])
-    prepared["exam_score"] = pd.to_numeric(prepared["ball"], errors="coerce")
-    prepared["exam_date"] = _as_datetime_series(prepared["date_testirovanya"])
-    prepared["is_active"] = prepared["aktive"].astype("boolean")
-    return prepared.merge(
-        applications.loc[:, ["deal_id", "program", "program_campus", "program_level"]],
-        how="left",
-        on="deal_id",
-        validate="many_to_one",
-    )
+# def _normalize_exams(exams: pd.DataFrame, applications: pd.DataFrame) -> pd.DataFrame:
+#     _require_columns(exams, BITRIX_EXAMS)
+#     prepared = exams.copy()
+#     prepared["deal_id"] = _as_text_series(prepared["iddeal"])
+#     prepared["contact_id"] = _as_text_series(prepared["idcontact"])
+#     prepared["exam_score"] = pd.to_numeric(prepared["ball"], errors="coerce")
+#     prepared["exam_date"] = _as_datetime_series(prepared["date_testirovanya"])
+#     prepared["is_active"] = prepared["aktive"].astype("boolean")
+#     return prepared.merge(
+#         applications.loc[:, ["deal_id", "program", "program_campus", "program_level"]],
+#         how="left",
+#         on="deal_id",
+#         validate="many_to_one",
+#     )
 
 
-def _normalize_portfolios(portfolios: pd.DataFrame, applications: pd.DataFrame) -> pd.DataFrame:
-    _require_columns(portfolios, BITRIX_PORTFOLIOS)
-    prepared = portfolios.copy()
-    prepared["deal_id"] = _as_text_series(prepared["iddeal"])
-    prepared["contact_id"] = _as_text_series(prepared["idcontact"])
-    prepared["product_id"] = _as_text_series(prepared["idtovar"])
-    prepared["is_active"] = prepared["status_elementa_portfolio"].astype("boolean")
-    return prepared.merge(
-        applications.loc[:, ["deal_id", "program", "program_campus", "program_level"]],
-        how="left",
-        on="deal_id",
-        validate="many_to_one",
-    )
+# def _normalize_portfolios(portfolios: pd.DataFrame, applications: pd.DataFrame) -> pd.DataFrame:
+#     _require_columns(portfolios, BITRIX_PORTFOLIOS)
+#     prepared = portfolios.copy()
+#     prepared["deal_id"] = _as_text_series(prepared["iddeal"])
+#     prepared["contact_id"] = _as_text_series(prepared["idcontact"])
+#     prepared["product_id"] = _as_text_series(prepared["idtovar"])
+#     prepared["is_active"] = prepared["status_elementa_portfolio"].astype("boolean")
+#     return prepared.merge(
+#         applications.loc[:, ["deal_id", "program", "program_campus", "program_level"]],
+#         how="left",
+#         on="deal_id",
+#         validate="many_to_one",
+#     )
 
 
-def normalize_bitrix_admissions_data(raw_tables: BitrixRawTables) -> NormalizedBitrixAdmissionsData:
-    """Normalize Bitrix admissions tables to dashboard-friendly tables."""
+# def normalize_bitrix_admissions_data(raw_tables: BitrixRawTables) -> NormalizedBitrixAdmissionsData:
+#     """Normalize Bitrix admissions tables to dashboard-friendly tables."""
 
-    applications = _normalize_applications(raw_tables)
-    exams = _normalize_exams(raw_tables.exams, applications)
-    portfolios = _normalize_portfolios(raw_tables.portfolios, applications)
-    return NormalizedBitrixAdmissionsData(applications=applications, exams=exams, portfolios=portfolios)
+#     applications = _normalize_applications(raw_tables)
+#     exams = _normalize_exams(raw_tables.exams, applications)
+#     portfolios = _normalize_portfolios(raw_tables.portfolios, applications)
+#     return NormalizedBitrixAdmissionsData(applications=applications, exams=exams, portfolios=portfolios)
 
 
-def create_bitrix_admissions_sources(entity_type_ids: Mapping[str, int]) -> tuple[BitrixItemSource, ...]:
-    """Create read-only Bitrix item sources for all admissions tables."""
+# def create_bitrix_admissions_sources() -> tuple[BitrixItemSource, ...]: #entity_type_ids: Mapping[str, int]
+#     """Create read-only Bitrix item sources for all admissions tables."""
 
-    missing_names = [name for name in REQUIRED_BITRIX_TABLE_NAMES if name not in entity_type_ids]
-    if missing_names:
-        raise ValueError(f"Missing Bitrix entity type IDs for admissions tables: {missing_names}")
+#     # missing_names = [name for name in REQUIRED_BITRIX_TABLE_NAMES if name not in entity_type_ids]
+#     # if missing_names:
+#     #     raise ValueError(f"Missing Bitrix entity type IDs for admissions tables: {missing_names}")
 
-    entity_by_name: Mapping[str, BitrixEntity] = {
-        entity.name: entity
-        for entity in (
-            BITRIX_DEALS,
-            BITRIX_CONTACTS,
-            BITRIX_EDUCATIONAL_PROGRAMS,
-            BITRIX_CONTRACTS,
-            BITRIX_EXAMS,
-            BITRIX_PORTFOLIOS,
-        )
-    }
-    sources: list[BitrixItemSource] = []
-    for table_name in REQUIRED_BITRIX_TABLE_NAMES:
-        entity = entity_by_name[table_name]
-        select = tuple(dict.fromkeys((*entity.required_fields, *OPTIONAL_ENTITY_SELECT_FIELDS.get(table_name, ()))))
-        sources.append(
-            BitrixItemSource(
-                name=table_name,
-                entity_type_id=int(entity_type_ids[table_name]),
-                select=select,
-                extra_filter={"CATEGORY_ID" : 4} if table_name == "deals" else {}, # TODO change to resolving CATEGORY_ID by name "Поступление 360"
-            )
-        )
-    return tuple(sources)
+#     entity_by_name: Mapping[str, BitrixEntity] = {
+#         entity.name: entity
+#         for entity in (
+#             BITRIX_CRM_DEALS,
+#             BITRIX_PORTAL_DEALS,
+#             BITRIX_AISPK_APPLICATIONS,
+#             BITRIX_CONTACTS,
+#             BITRIX_EDUCATIONAL_PROGRAMS,
+#             # BITRIX_CONTRACTS,
+#             # BITRIX_EXAMS,
+#             # BITRIX_PORTFOLIOS,
+#         )
+#     }
+#     sources: list[BitrixItemSource] = []
+#     for table_name in REQUIRED_BITRIX_TABLE_NAMES:
+#         entity = entity_by_name[table_name]
+#         select = entity.required_fields
+#         # select = tuple(dict.fromkeys((*entity.required_fields, *OPTIONAL_ENTITY_SELECT_FIELDS.get(table_name, ())))) # TODO move back if needed
+#         sources.append(
+#             BitrixItemSource(
+#                 name=table_name,
+#                 entity_type_id=entity.num_id, # int(entity_type_ids[table_name]),
+#                 select=select,
+#                 extra_filter={"CATEGORY_ID" : entity.num_id} if table_name == "crm_deals" else {}, # TODO change to resolving CATEGORY_ID by name "Поступление 360"
+#             )
+#         )
+#     return tuple(sources)
 
 # def collect_deals_dataframe(
 #     *,
@@ -320,7 +334,7 @@ def create_bitrix_admissions_sources(entity_type_ids: Mapping[str, int]) -> tupl
 
 def collect_bitrix_raw_tables(
     client: BitrixRestClient,
-    sources: Sequence[BitrixItemSource],
+    sources: tuple[BitrixEntity, ...],
     batch_size: int,
     debug: bool = False
 ) -> BitrixRawTables:
@@ -331,7 +345,9 @@ def collect_bitrix_raw_tables(
     if missing_names:
         raise ValueError(f"Bitrix raw tables were not collected: {missing_names}")
     return BitrixRawTables(
-        deals=tables["deals"],
+        crm_deals=tables["crm_deals"],
+        portal_deals=tables["portal_deals"],
+        applications=tables["applications"],
         contacts=tables["contacts"],
         educational_programs=tables["educational_programs"],
         # TODO in future
@@ -454,7 +470,7 @@ def _finalize_dashboard_calculations(dashboard: pd.DataFrame) -> pd.DataFrame:
 
 def apply_bitrix_metrics_to_dashboard(
     dashboard: pd.DataFrame,
-    admissions_data: NormalizedBitrixAdmissionsData,
+    admissions_data: pd.DataFrame, # NormalizedBitrixAdmissionsData,
     as_of: datetime,
 ) -> pd.DataFrame:
     """Fill dashboard metric columns from normalized Bitrix admissions data."""
@@ -509,7 +525,7 @@ def apply_bitrix_metrics_to_dashboard(
 
 def process_current_files_from_bitrix(
     client: BitrixRestClient,
-    sources: Sequence[BitrixItemSource],
+    sources: tuple[BitrixEntity, ...],
     dashboard_template: pd.DataFrame,
     as_of: datetime,
     batch_size: int,
@@ -519,8 +535,9 @@ def process_current_files_from_bitrix(
     """Build current dashboard data from Bitrix tables only."""
 
     raw_tables = collect_bitrix_raw_tables(client, sources, batch_size, debug)
-    admissions_data = normalize_bitrix_admissions_data(raw_tables)
-    dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, admissions_data, as_of)
+    data = _normalize_and_merge_raw_data(raw_tables)
+    # admissions_data = normalize_bitrix_admissions_data(raw_tables)
+    dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, data, as_of)
     dashboard = _finalize_dashboard_calculations(dashboard)
     dashboard = dashboard.drop(columns=[column for column in TECHNICAL_DASHBOARD_COLUMNS if column in dashboard.columns])
     
