@@ -533,56 +533,17 @@ def apply_bitrix_metrics_to_dashboard(
     contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
     result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
 
-    # TODO оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
+    # TODO лиды по общему ленду, оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
 
-    # result[col_leads] = _insert_metric_by_program_identity(result, _count_by_program(applications, "application_date"), col_leads)
-    # result[col_applications] = _insert_metric_by_program_identity(
-    #     result,
-    #     _count_by_program(applications, "application_date"),
-    #     col_applications,
-    # )
-    # result[col_contracts] = _insert_metric_by_program_identity(
-    #     result,
-    #     _count_by_program(applications, "contract_date"),
-    #     col_contracts,
-    # )
-    # result[col_payments] = _insert_metric_by_program_identity(
-    #     result,
-    #     _count_by_program(applications, "payment_date"),
-    #     col_payments,
-    # )
-    # result[col_enrollments] = _insert_metric_by_program_identity(
-    #     result,
-    #     _count_present_by_program(applications, "enrollment_order"),
-    #     col_enrollments,
-    # )
-    # result[col_male] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, MALE_VALUES), col_male)
-    # result[col_female] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, FEMALE_VALUES), col_female)
-    # result[col_ages] = _insert_metric_by_program_identity(result, _age_bars_by_program(applications, as_of), col_ages)
-    # result[col_ages_mean] = _insert_metric_by_program_identity(result, _age_mean_by_program(applications, as_of), col_ages_mean)
+    # Пока не работает:
+    # leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
+    # result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna(0).astype(int)
 
-    leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
-    result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna(0).astype(int)
-
-    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
-    result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
+    # applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
+    # result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
     
-    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
-    result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
-    
-    # insert_values(
-    #     result,
-    #     pd.DataFrame({col_program: applications_by_week["program"], "values": applications_by_week["count"]}),
-    #     col_program,
-    #     col_applications_by_week,
-    # )
-    # contracts_by_week = process_by_week(applications, "program", "contract_date", "count", "%Y-%m-%d")
-    # result[col_contracts_by_week] = insert_values(
-    #     result,
-    #     pd.DataFrame({col_program: contracts_by_week["program"], "values": contracts_by_week["count"]}),
-    #     col_program,
-    #     col_contracts_by_week,
-    # )
+    # contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
+    # result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
 
     result.replace(np.inf, 0, inplace=True)
     result.fillna(0, inplace=True)

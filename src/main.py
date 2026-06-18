@@ -40,6 +40,6 @@ if __name__ == '__main__':
         count_delta = False
         update_dashboard = False
         legacy = False
-        debug = True
+        debug = False
         
     run_dashboard(count_delta=count_delta, update_dashboard=update_dashboard, legacy=legacy, debug=debug)
