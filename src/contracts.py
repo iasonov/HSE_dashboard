@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from collections.abc import Mapping
 from typing import Any
 
-@dataclass() # frozen=True, slots=True
+@dataclass(frozen=True, slots=True)
 class BitrixEntity:
     '''Describe one Bitrix admissions entity table.'''
 

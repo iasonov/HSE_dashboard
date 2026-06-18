@@ -10,41 +10,43 @@ from dataclasses import dataclass
 
 from time_const import * 
 from bitrix import BitrixRestClient, collect_bitrix_item_sources
-from col_names import (
-    col_ages,
-    col_ages_mean,
-    col_applications,
-    col_applications_by_week,
-    col_contracts,
-    col_contracts_by_week,
-    col_conversion_applications_to_contracts,
-    col_conversion_contracts_to_enrollments,
-    col_conversion_contracts_to_payments,
-    col_conversion_leads_to_contracts,
-    col_enrollments,
-    col_enrollments_foreign,
-    col_female,
-    col_income_1year,
-    col_income_1year_hse,
-    col_income_all,
-    col_income_all_hse,
-    col_leads,
-    col_leads_partners,
-    col_leads_total,
-    col_male,
-    col_needed_applications,
-    col_payments,
-    col_payments_div_plan_foreign,
-    col_payments_div_plan_rus,
-    col_payments_foreign,
-    col_plan_foreign,
-    col_plan_rus,
-    col_program,
-    main_studyonline,
-    leads_dates,
-    applications_dates,
-    contracts_dates,
-)
+from col_names import *
+# \(
+#     col_ages,
+#     col_ages_mean,
+#     col_applications,
+#     col_applications_by_week,
+#     col_contracts,
+#     col_contracts_by_week,
+#     col_conversion_applications_to_contracts,
+#     col_conversion_contracts_to_enrollments,
+#     col_conversion_contracts_to_payments,
+#     col_conversion_leads_to_contracts,
+#     col_enrollments,
+#     col_enrollments_foreign,
+#     col_female,
+#     col_income_1year,
+#     col_income_1year_hse,
+#     col_income_all,
+#     col_income_all_hse,
+#     col_leads,
+#     col_leads_partners,
+#     col_leads_total,
+#     col_male,
+#     col_needed_applications,
+#     col_payments,
+#     col_payments_div_plan_foreign,
+#     col_payments_div_plan_rus,
+#     col_payments_foreign,
+#     col_plan_foreign,
+#     col_plan_rus,
+#     col_program,
+#     main_studyonline,
+#     leads_dates,
+#     applications_dates,
+#     contracts_dates,
+#     col_program_bitrix,
+# )
 from contracts import (
     BITRIX_CONTACTS,
     BITRIX_CRM_DEALS,
@@ -60,7 +62,7 @@ from contracts import (
 from process import categorize_ages, insert_values, num_years, process_by_week
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class BitrixRawTables:
     """Raw Bitrix admissions tables exported from CRM."""
 
@@ -158,25 +160,26 @@ def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
     raw_tables.portal_deals['ufDealEducationProgram'] = raw_tables.portal_deals['ufDealEducationProgram'].fillna(-1).astype(int, errors='raise') # TODO check -1 - не наша программа
     raw_tables.applications['ufDealEducationProgram'] = raw_tables.applications['ufDealEducationProgram'].fillna(-2).astype(int, errors='raise') # TODO repair - там и наши ленды, и не наши ленды, см. Пустоты в ufDealProgram_APP
 
-    import dataclasses
-    print(BITRIX_PORTAL_DEALS.__dataclass_params__.frozen)
     raw_tables.educational_programs = raw_tables.educational_programs[['ID', 'NAME']] # убираем ненужные столбцы, альтернативно можно не забирать их с помощью SELECT
     raw_tables.educational_programs['ID'] = raw_tables.educational_programs['ID'].astype(int, errors='raise') # в целом тут пустых быть не должно
-    raw_tables.educational_programs = raw_tables.educational_programs.rename(columns={'ID': 'ufDealEducationProgram', 'NAME': col_program}) # переименовываем столбцы для удобства merge
-    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': 0, col_program: main_studyonline})
-    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -1, col_program: 'Не указана программа в воронке Портала ВШЭ'})
-    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -2, col_program: 'Не указана программа в воронке МАГ/БАК'})
+    raw_tables.educational_programs = raw_tables.educational_programs.rename(columns={'ID': 'ufDealEducationProgram', 'NAME': col_program_bitrix}) # переименовываем столбцы для удобства merge
+    raw_tables.educational_programs = pd.concat([raw_tables.educational_programs, pd.DataFrame({
+        'ufDealEducationProgram': [0,                -1,                                           -2],
+        col_program_bitrix:       [main_studyonline, 'Не указана программа в воронке Портала ВШЭ', 'Не указана программа в воронке МАГ/БАК']
+    })], ignore_index=True)
+    # raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': 0, col_program: main_studyonline})
+    # raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -1, col_program: 'Не указана программа в воронке Портала ВШЭ'})
+    # raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -2, col_program: 'Не указана программа в воронке МАГ/БАК'})
 
     raw_tables.crm_deals    = pd.merge(raw_tables.crm_deals,    raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
     raw_tables.portal_deals = pd.merge(raw_tables.portal_deals, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
     raw_tables.applications = pd.merge(raw_tables.applications, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
     
-    raw_tables.crm_deals[leads_dates]    = pd.to_datetime(raw_tables.crm_deals['createdTime'], errors='raise')
-    raw_tables.portal_deals[leads_dates] = pd.to_datetime(raw_tables.portal_deals['createdTime'], errors='raise')
-    raw_tables.applications[applications_dates] = pd.to_datetime(raw_tables.applications['createdTime'], errors='raise')
-    raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise')
+    raw_tables.crm_deals[leads_dates]           = pd.to_datetime(raw_tables.crm_deals['createdTime'], errors='raise').dt.tz_localize(None)
+    raw_tables.portal_deals[leads_dates]        = pd.to_datetime(raw_tables.portal_deals['createdTime'], errors='raise').dt.tz_localize(None)
+    raw_tables.applications[applications_dates] = pd.to_datetime(raw_tables.applications['createdTime'], errors='raise').dt.tz_localize(None)
+    raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise').dt.tz_localize(None) # TODO check
     
-    print("EEEEEE")
     # deals = raw_tables.crm_deals.copy() # START strange things with convertion, NaN & NaT
     # deals["deal_id"] = _as_text_series(deals["id"]) # .astype("string").str.strip()
     # deals["contact_id"] = _as_text_series(deals["contactId"])
@@ -423,53 +426,53 @@ def _age_mean_by_program(frame: pd.DataFrame, as_of: datetime) -> pd.DataFrame:
     return filtered.groupby(group_columns, dropna=False)["age"].mean().reset_index(name="values")
 
 
-def _insert_metric_by_program_identity(
-    dashboard: pd.DataFrame,
-    metric_values: pd.DataFrame,
-    metric_column: str,
-) -> pd.Series:
-    if metric_values.empty:
-        return pd.Series([0] * len(dashboard), index=dashboard.index)
+# def _insert_metric_by_program_identity(
+#     dashboard: pd.DataFrame,
+#     metric_values: pd.DataFrame,
+#     metric_column: str,
+# ) -> pd.Series:
+#     if metric_values.empty:
+#         return pd.Series([0] * len(dashboard), index=dashboard.index)
 
-    left_keys = [col_program]
-    right_keys = ["program"]
-    optional_keys = (
-        ("campus", "program_campus"),
-        ("level", "program_level"),
-        ("format", "program_form"),
-    )
-    for left_key, right_key in optional_keys:
-        if left_key in dashboard.columns and right_key in metric_values.columns:
-            left_keys.append(left_key)
-            right_keys.append(right_key)
+#     left_keys = [col_program]
+#     right_keys = ["program"]
+#     optional_keys = (
+#         ("campus", "program_campus"),
+#         ("level", "program_level"),
+#         ("format", "program_form"),
+#     )
+#     for left_key, right_key in optional_keys:
+#         if left_key in dashboard.columns and right_key in metric_values.columns:
+#             left_keys.append(left_key)
+#             right_keys.append(right_key)
 
-    prepared_dashboard = dashboard.reset_index(names="__dashboard_index")
-    prepared_metrics = metric_values.copy()
-    for left_key, right_key in zip(left_keys, right_keys):
-        prepared_dashboard[left_key] = prepared_dashboard[left_key].astype("string").str.strip()
-        prepared_metrics[right_key] = prepared_metrics[right_key].astype("string").str.strip()
+#     prepared_dashboard = dashboard.reset_index(names="__dashboard_index")
+#     prepared_metrics = metric_values.copy()
+#     for left_key, right_key in zip(left_keys, right_keys):
+#         prepared_dashboard[left_key] = prepared_dashboard[left_key].astype("string").str.strip()
+#         prepared_metrics[right_key] = prepared_metrics[right_key].astype("string").str.strip()
 
-    duplicated_metric_keys = prepared_metrics.duplicated(subset=right_keys, keep=False)
-    if duplicated_metric_keys.any():
-        duplicated_rows = prepared_metrics.loc[duplicated_metric_keys, right_keys].drop_duplicates().to_dict("records")
-        raise ValueError(
-            f"Dashboard keys {left_keys} do not disambiguate Bitrix programs for metric {metric_column!r}: "
-            f"{duplicated_rows}"
-        )
+#     duplicated_metric_keys = prepared_metrics.duplicated(subset=right_keys, keep=False)
+#     if duplicated_metric_keys.any():
+#         duplicated_rows = prepared_metrics.loc[duplicated_metric_keys, right_keys].drop_duplicates().to_dict("records")
+#         raise ValueError(
+#             f"Dashboard keys {left_keys} do not disambiguate Bitrix programs for metric {metric_column!r}: "
+#             f"{duplicated_rows}"
+#         )
 
-    merged = prepared_dashboard.merge(
-        prepared_metrics.loc[:, [*right_keys, "values"]],
-        how="left",
-        left_on=left_keys,
-        right_on=right_keys,
-        validate="many_to_one",
-    )
-    merged = merged.sort_values("__dashboard_index")
-    return merged["values"].fillna(0).rename(metric_column)
+#     merged = prepared_dashboard.merge(
+#         prepared_metrics.loc[:, [*right_keys, "values"]],
+#         how="left",
+#         left_on=left_keys,
+#         right_on=right_keys,
+#         validate="many_to_one",
+#     )
+#     merged = merged.sort_values("__dashboard_index")
+#     return merged["values"].fillna(0).rename(metric_column)
 
 
 def _finalize_dashboard_calculations(dashboard: pd.DataFrame) -> pd.DataFrame:
-    result = dashboard.copy()
+    result = dashboard #.copy()
     for column in (col_leads_partners, col_payments_foreign, col_plan_rus, col_plan_foreign):
         if column not in result.columns:
             result[column] = 0
@@ -503,48 +506,83 @@ def apply_bitrix_metrics_to_dashboard(
 ) -> pd.DataFrame:
     """Fill dashboard metric columns from normalized Bitrix admissions data."""
 
-    result = dashboard.copy()
-    applications = admissions_data.applications
-    result[col_leads] = _insert_metric_by_program_identity(result, _count_by_program(applications, "application_date"), col_leads)
-    result[col_applications] = _insert_metric_by_program_identity(
-        result,
-        _count_by_program(applications, "application_date"),
-        col_applications,
-    )
-    result[col_contracts] = _insert_metric_by_program_identity(
-        result,
-        _count_by_program(applications, "contract_date"),
-        col_contracts,
-    )
-    result[col_payments] = _insert_metric_by_program_identity(
-        result,
-        _count_by_program(applications, "payment_date"),
-        col_payments,
-    )
-    result[col_enrollments] = _insert_metric_by_program_identity(
-        result,
-        _count_present_by_program(applications, "enrollment_order"),
-        col_enrollments,
-    )
-    result[col_male] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, MALE_VALUES), col_male)
-    result[col_female] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, FEMALE_VALUES), col_female)
-    result[col_ages] = _insert_metric_by_program_identity(result, _age_bars_by_program(applications, as_of), col_ages)
-    result[col_ages_mean] = _insert_metric_by_program_identity(result, _age_mean_by_program(applications, as_of), col_ages_mean)
+    result = dashboard #.copy()
 
-    applications_by_week = process_by_week(applications, "program", "application_date", "count", "%Y-%m-%d")
-    result[col_applications_by_week] = insert_values(
-        result,
-        pd.DataFrame({col_program: applications_by_week["program"], "values": applications_by_week["count"]}),
-        col_program,
-        col_applications_by_week,
-    )
-    contracts_by_week = process_by_week(applications, "program", "contract_date", "count", "%Y-%m-%d")
-    result[col_contracts_by_week] = insert_values(
-        result,
-        pd.DataFrame({col_program: contracts_by_week["program"], "values": contracts_by_week["count"]}),
-        col_program,
-        col_contracts_by_week,
-    )
+    # Previous version:
+    # crm_leads_by_program = admissions_data.crm_deals.groupby(col_program_bitrix)[leads_dates].count()
+    # crm_leads_by_program = pd.DataFrame({col_program_bitrix:crm_leads_by_program.index, 'values':crm_leads_by_program.values})
+    # result[col_leads] = insert_values(result, crm_leads_by_program, col_program_bitrix, col_leads)
+
+    leads_counts = admissions_data.crm_deals.groupby(col_program_bitrix)[leads_dates].size()
+    result[col_leads] = result[col_program_bitrix].map(leads_counts).fillna(0).astype(int)
+
+    leads_count_after_april = admissions_data.crm_deals[admissions_data.crm_deals[leads_dates] >= DATE_01_04_2026].groupby(col_program_bitrix)[leads_dates].size()
+    result[col_leads_after_april] = result[col_program_bitrix].map(leads_count_after_april).fillna(0).astype(int)
+
+    leads_delta = admissions_data.crm_deals[admissions_data.crm_deals[leads_dates] >= datetime.now() - timedelta(days=3, hours=12)].groupby(col_program_bitrix)[leads_dates].size()
+    result[col_leads_delta] = result[col_program_bitrix].map(leads_delta).fillna(0).astype(int)
+
+    portal_counts = admissions_data.portal_deals.groupby(col_program_bitrix)[leads_dates].size()
+    result[col_leads_partners] = result[col_program_bitrix].map(portal_counts).fillna(0).astype(int) 
+
+    result[col_leads_total] = result[col_leads] + result[col_leads_partners]
+
+    applications_count = admissions_data.applications.groupby(col_program_bitrix)[applications_dates].size()
+    result[col_applications] = result[col_program_bitrix].map(applications_count).fillna(0).astype(int)
+
+    contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
+    result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
+
+    # TODO оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
+
+    # result[col_leads] = _insert_metric_by_program_identity(result, _count_by_program(applications, "application_date"), col_leads)
+    # result[col_applications] = _insert_metric_by_program_identity(
+    #     result,
+    #     _count_by_program(applications, "application_date"),
+    #     col_applications,
+    # )
+    # result[col_contracts] = _insert_metric_by_program_identity(
+    #     result,
+    #     _count_by_program(applications, "contract_date"),
+    #     col_contracts,
+    # )
+    # result[col_payments] = _insert_metric_by_program_identity(
+    #     result,
+    #     _count_by_program(applications, "payment_date"),
+    #     col_payments,
+    # )
+    # result[col_enrollments] = _insert_metric_by_program_identity(
+    #     result,
+    #     _count_present_by_program(applications, "enrollment_order"),
+    #     col_enrollments,
+    # )
+    # result[col_male] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, MALE_VALUES), col_male)
+    # result[col_female] = _insert_metric_by_program_identity(result, _gender_count_by_program(applications, FEMALE_VALUES), col_female)
+    # result[col_ages] = _insert_metric_by_program_identity(result, _age_bars_by_program(applications, as_of), col_ages)
+    # result[col_ages_mean] = _insert_metric_by_program_identity(result, _age_mean_by_program(applications, as_of), col_ages_mean)
+
+    leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
+    result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna(0).astype(int)
+
+    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
+    result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
+    
+    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
+    result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
+    
+    # insert_values(
+    #     result,
+    #     pd.DataFrame({col_program: applications_by_week["program"], "values": applications_by_week["count"]}),
+    #     col_program,
+    #     col_applications_by_week,
+    # )
+    # contracts_by_week = process_by_week(applications, "program", "contract_date", "count", "%Y-%m-%d")
+    # result[col_contracts_by_week] = insert_values(
+    #     result,
+    #     pd.DataFrame({col_program: contracts_by_week["program"], "values": contracts_by_week["count"]}),
+    #     col_program,
+    #     col_contracts_by_week,
+    # )
 
     result.replace(np.inf, 0, inplace=True)
     result.fillna(0, inplace=True)

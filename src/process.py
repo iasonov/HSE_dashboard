@@ -341,14 +341,14 @@ def process_current_files_legacy(debug=None):
     now = datetime.now()
     
 
-    if (now >= DATE_01_04_26):
+    if (now >= DATE_01_04_2026):
         try: # Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса в html-формате')
             df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0] 
             df_bitrix_after_april = preprocess_bitrix_file(df_bitrix_after_april)
             df_bitrix_after_april[bitrix_col_date] = pd.to_datetime(df_bitrix_after_april[bitrix_col_date], dayfirst=True, errors='raise') # , format='%d.%m.%Y  %H:%M'
 
-            df_bitrix_after_april = df_bitrix_after_april[df_bitrix_after_april[bitrix_col_date] >= DATE_01_04_26] # надо отфильтровать с началом от 1.04, иначе может быть дублирование лидов с апреля и далее
+            df_bitrix_after_april = df_bitrix_after_april[df_bitrix_after_april[bitrix_col_date] >= DATE_01_04_2026] # надо отфильтровать с началом от 1.04, иначе может быть дублирование лидов с апреля и далее
 
             print('Данные от Битрикса считаны')
             # pd.read_excel(bitrix_file)
@@ -376,7 +376,7 @@ def process_current_files_legacy(debug=None):
 
     # TODO заменить с помощью API
 
-    if (now >= DATE_01_04_26):
+    if (now >= DATE_01_04_2026):
         try:# Число лидов из битрикс до 1 апреля (не включительно). Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса до 31.03')
             df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april) # , usecols=columns_from_bitrix_file_2026= H:Q
@@ -454,7 +454,7 @@ def process_current_files_legacy(debug=None):
 
     main_leads = leads_before_april.loc[leads_before_april[col_program_bitrix] == main_studyonline, 'values'].values[0]
 
-    if now >= DATE_01_04_26:
+    if now >= DATE_01_04_2026:
         try:
             main_leads_after_april = leads_after_april.loc[leads_after_april[col_program_bitrix] == main_studyonline, 'values'].values[0]
             main_leads            += main_leads_after_april # TODO check
@@ -710,7 +710,7 @@ def process_current_files_legacy(debug=None):
     df[col_contracts_prev] = insert_values(df, df_contracts_prev, col_program, col_contracts_prev)
 
     # считываем тренды по неделям (заявки)
-    if now > DATE_01_04_26:
+    if now > DATE_01_04_2026:
         df_bitrix_before_april.rename(columns={leads_dates: bitrix_col_date}, inplace=True) 
 
     df_bitrix = pd.concat([df_bitrix_before_april, df_bitrix_after_april])
