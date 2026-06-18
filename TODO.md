@@ -13,6 +13,8 @@
 9) Изучить сколько пропусков в ufDealEducationProgram и можно ли их заполнить
 
 ## Features
+[ ] deal stage histogram
+[ ] success of managers (conversions? leads?)
 [ ] get data from Bitrix by API
 [ ] append new programs and convert to csv
 [x] read early invitation from Katya
@@ -38,6 +40,10 @@
 [x] change bachelor of design fee to 420 and ПРВИС to 500
 [x] choose "ЭКАНБАК" vs. "БАКЭКАН" and put it into database
 [x] test after leads 2023 upload added
+[ ] notation of csv & xlsx files
+[ ] aliases for program names (bitrix, aispk)
+[ ] secrets and history filest - to secret folder?
+[ ] old files to bd? pyspark?
 
 # Backlog
 ## Features

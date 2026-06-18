@@ -1,4 +1,4 @@
-"""Read-only helpers for loading Bitrix24 CRM data into pandas."""
+'''Read-only helpers for loading Bitrix24 CRM data into pandas.'''
 
 from __future__ import annotations
 
@@ -14,46 +14,63 @@ from contracts import BitrixEntity
 import pandas as pd
 
 try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda *a, **k: _NoOpProgressBar(*a, **k)
+
+
+class _NoOpProgressBar:
+    '''Dummy progress bar when tqdm is not installed.'''
+    def __init__(self, *a, **k):
+        pass
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc):
+        pass
+    def update(self, n=1):
+        pass
+
+try:
     from my_secrets import secrets
 except ImportError:
     secrets = {}
 
-BITRIX_WEBHOOK_URL = str(secrets.get("BITRIX_WEBHOOK_URL", ""))
+BITRIX_WEBHOOK_URL = str(secrets.get('BITRIX_WEBHOOK_URL', ''))
 # BITRIX_DEAL_ENTITY_TYPE_ID = 2
-BITRIX_PAGE_SIZE = 10 # TODO replace with 50 after debug
-BITRIX_BATCH_LIMIT = 10 # TODO replace with 50 after debug
-READ_ONLY_METHOD_SUFFIXES = (".get", ".list", ".fields")
-READ_ONLY_METHODS = {"batch"}
+BITRIX_PAGE_SIZE = 50
+BITRIX_BATCH_LIMIT = 50
+READ_ONLY_METHOD_SUFFIXES = ('.get', '.list', '.fields')
+READ_ONLY_METHODS = {'batch'}
 # DEFAULT_DEAL_SELECT = (
-#     "ID",
-#     "TITLE",
-#     "TYPE_ID",
-#     "CATEGORY_ID",
-#     "STAGE_ID",
-#     "STAGE_SEMANTIC_ID",
-#     "IS_NEW",
-#     "IS_RECURRING",
-#     "IS_RETURN_CUSTOMER",
-#     "IS_REPEATED_APPROACH",
-#     "OPPORTUNITY",
-#     "CURRENCY_ID",
-#     "ASSIGNED_BY_ID",
-#     "CONTACT_ID",
-#     "COMPANY_ID",
-#     "DATE_CREATE",
-#     "DATE_MODIFY",
-#     "BEGINDATE",
-#     "CLOSEDATE",
-#     "SOURCE_ID",
-#     "SOURCE_DESCRIPTION",
-#     "COMMENTS",
-#     "UF_*",
+#     'ID',
+#     'TITLE',
+#     'TYPE_ID',
+#     'CATEGORY_ID',
+#     'STAGE_ID',
+#     'STAGE_SEMANTIC_ID',
+#     'IS_NEW',
+#     'IS_RECURRING',
+#     'IS_RETURN_CUSTOMER',
+#     'IS_REPEATED_APPROACH',
+#     'OPPORTUNITY',
+#     'CURRENCY_ID',
+#     'ASSIGNED_BY_ID',
+#     'CONTACT_ID',
+#     'COMPANY_ID',
+#     'DATE_CREATE',
+#     'DATE_MODIFY',
+#     'BEGINDATE',
+#     'CLOSEDATE',
+#     'SOURCE_ID',
+#     'SOURCE_DESCRIPTION',
+#     'COMMENTS',
+#     'UF_*',
 # )
 
 
 # @dataclass(frozen=True, slots=True)
 # class BitrixItemSource:
-#     """Describe one Bitrix dynamic CRM item source."""
+#     '''Describe one Bitrix dynamic CRM item source.'''
 
 #     name: str
 #     entity_type_id: int
@@ -62,11 +79,11 @@ READ_ONLY_METHODS = {"batch"}
 
 
 class BitrixReadOnlyError(ValueError):
-    """Raised when a non-read-only REST method is requested."""
+    '''Raised when a non-read-only REST method is requested.'''
 
 
 class BitrixAPIError(RuntimeError):
-    """Raised when Bitrix REST returns an API-level error."""
+    '''Raised when Bitrix REST returns an API-level error.'''
 
 
 def _is_read_only_method(method: str) -> bool:
@@ -76,24 +93,24 @@ def _is_read_only_method(method: str) -> bool:
 def _assert_read_only_method(method: str) -> None:
     if not _is_read_only_method(method):
         raise BitrixReadOnlyError(
-            f"Method {method!r} is not allowed: only read-only Bitrix REST methods are used"
+            f'Method {method!r} is not allowed: only read-only Bitrix REST methods are used'
         )
 
 
 def _flatten_params(params: Mapping[str, Any], prefix: str | None) -> list[tuple[str, Any]]:
-    """Convert nested Bitrix REST parameters to bracket-notation pairs."""
+    '''Convert nested Bitrix REST parameters to bracket-notation pairs.'''
 
     pairs: list[tuple[str, Any]] = []
     for key, value in params.items():
-        nested_key = f"{prefix}[{key}]" if prefix else str(key)
+        nested_key = f'{prefix}[{key}]' if prefix else str(key)
         if isinstance(value, Mapping):
             pairs.extend(_flatten_params(value, nested_key))
         elif isinstance(value, (list, tuple)):
             for item in value:
                 if isinstance(item, Mapping):
-                    pairs.extend(_flatten_params(item, f"{nested_key}[]"))
+                    pairs.extend(_flatten_params(item, f'{nested_key}[]'))
                 else:
-                    pairs.append((f"{nested_key}[]", item))
+                    pairs.append((f'{nested_key}[]', item))
         elif value is not None:
             pairs.append((nested_key, value))
     return pairs
@@ -102,11 +119,11 @@ def _flatten_params(params: Mapping[str, Any], prefix: str | None) -> list[tuple
 def _build_batch_command(method: str, params: Mapping[str, Any]) -> str:
     _assert_read_only_method(method)
     query = urlencode(_flatten_params(params, None), doseq=True)
-    return f"{method}?{query}" if query else method
+    return f'{method}?{query}' if query else method
 
 
 class BitrixRestClient:
-    """Minimal read-only Bitrix REST client with rate limiting and retries."""
+    '''Minimal read-only Bitrix REST client with rate limiting and retries.'''
 
     def __init__(
         self,
@@ -117,7 +134,7 @@ class BitrixRestClient:
         max_retries: int,
         retry_backoff: float,
     ) -> None:
-        self.webhook_url = webhook_url.rstrip("/") + "/"
+        self.webhook_url = webhook_url.rstrip('/') + '/'
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
@@ -126,7 +143,7 @@ class BitrixRestClient:
         try:
             import requests
         except ImportError as error:
-            raise RuntimeError("Install the project dependencies before using BitrixRestClient") from error
+            raise RuntimeError('Install the project dependencies before using BitrixRestClient') from error
         self.session = requests.Session()
 
     def _wait_for_rate_limit(self) -> None:
@@ -137,15 +154,15 @@ class BitrixRestClient:
             time.sleep(self._min_interval - elapsed)
 
     def call(self, method: str, params: Mapping[str, Any] | None) -> dict[str, Any]:
-        """Call a read-only Bitrix REST method and return its decoded JSON response."""
+        '''Call a read-only Bitrix REST method and return its decoded JSON response.'''
 
         _assert_read_only_method(method)
         payload = dict(params or {})
-        if method == "batch":
-            for command in payload.get("cmd", {}).values():
-                _assert_read_only_method(command.split("?", 1)[0])
+        if method == 'batch':
+            for command in payload.get('cmd', {}).values():
+                _assert_read_only_method(command.split('?', 1)[0])
 
-        url = f"{self.webhook_url}{method}.json"
+        url = f'{self.webhook_url}{method}.json'
         for attempt in range(self.max_retries + 1):
             self._wait_for_rate_limit()
             self._last_request_at = time.monotonic()
@@ -155,34 +172,34 @@ class BitrixRestClient:
                 continue
             response.raise_for_status()
             data = response.json()
-            error = data.get("error")
-            if error == "QUERY_LIMIT_EXCEEDED" and attempt < self.max_retries:
+            error = data.get('error')
+            if error == 'QUERY_LIMIT_EXCEEDED' and attempt < self.max_retries:
                 time.sleep(self.retry_backoff * (attempt + 1))
                 continue
             if error:
-                description = data.get("error_description", "")
-                raise BitrixAPIError(f"Bitrix method {method!r} failed: {error} {description}".strip())
+                description = data.get('error_description', '')
+                raise BitrixAPIError(f'Bitrix method {method!r} failed: {error} {description}'.strip())
             return data
-        raise BitrixAPIError(f"Bitrix method {method!r} failed after {self.max_retries + 1} attempts")
+        raise BitrixAPIError(f'Bitrix method {method!r} failed after {self.max_retries + 1} attempts')
 
     def batch(self, commands: Mapping[str, tuple[str, Mapping[str, Any]]]) -> dict[str, Any]:
-        """Execute up to 50 read-only commands through Bitrix batch."""
+        '''Execute up to 50 read-only commands through Bitrix batch.'''
 
         if len(commands) > BITRIX_BATCH_LIMIT:
-            raise ValueError(f"Bitrix batch supports at most {BITRIX_BATCH_LIMIT} commands")
+            raise ValueError(f'Bitrix batch supports at most {BITRIX_BATCH_LIMIT} commands')
         cmd = {key: _build_batch_command(method, params) for key, (method, params) in commands.items()}
-        response = self.call("batch", {"halt": 1, "cmd": cmd})
-        result = response.get("result", {})
-        if result.get("result_error"):
-            raise BitrixAPIError(f"Bitrix batch failed: {result['result_error']}")
-        return result.get("result", {})
+        response = self.call('batch', {'halt': 1, 'cmd': cmd})
+        result = response.get('result', {})
+        if result.get('result_error'):
+            raise BitrixAPIError(f'Bitrix batch failed: {result["result_error"]}')
+        return result.get('result', {})
 
 
 def create_bitrix_client(webhook_url: str) -> BitrixRestClient:
-    """Create the default read-only Bitrix REST client."""
+    '''Create the default read-only Bitrix REST client.'''
 
     if not webhook_url:
-        raise ValueError("Bitrix webhook URL is empty; set secrets['BITRIX_WEBHOOK_URL']")
+        raise ValueError('Bitrix webhook URL is empty; set secrets["BITRIX_WEBHOOK_URL"]')
     return BitrixRestClient(
         webhook_url,
         requests_per_second=2.0,
@@ -193,30 +210,30 @@ def create_bitrix_client(webhook_url: str) -> BitrixRestClient:
 
 
 # def get_deal_category_id(category_name: str, client: BitrixRestClient) -> int:
-#     """Return Bitrix deal category ID by its visible funnel name."""
+#     '''Return Bitrix deal category ID by its visible funnel name.'''
 
 #     try:
-#         response = client.call("crm.category.list", {"entityTypeId": BITRIX_DEAL_ENTITY_TYPE_ID})
-#         category_result = response.get("result", [])
-#         categories = category_result.get("categories", []) if isinstance(category_result, Mapping) else category_result
+#         response = client.call('crm.category.list', {'entityTypeId': BITRIX_DEAL_ENTITY_TYPE_ID})
+#         category_result = response.get('result', [])
+#         categories = category_result.get('categories', []) if isinstance(category_result, Mapping) else category_result
 #     except BitrixAPIError:
 #         response = client.call(
-#             "crm.dealcategory.list",
-#             {"order": {"SORT": "ASC"}, "select": ["ID", "NAME", "SORT"]},
+#             'crm.dealcategory.list',
+#             {'order': {'SORT': 'ASC'}, 'select': ['ID', 'NAME', 'SORT']},
 #         )
-#         categories = response.get("result", [])
+#         categories = response.get('result', [])
 
 #     for category in categories:
-#         category_title = str(category.get("name") or category.get("NAME") or "").strip().casefold()
+#         category_title = str(category.get('name') or category.get('NAME') or '').strip().casefold()
 #         if category_title == category_name.strip().casefold():
-#             return int(category.get("id") or category.get("ID"))
-#     raise ValueError(f"Deal funnel {category_name!r} was not found")
+#             return int(category.get('id') or category.get('ID'))
+#     raise ValueError(f'Deal funnel {category_name!r} was not found')
 
 # Get all lists with 
 # base_params: dict[str, Any] = {
-#     "IBLOCK_TYPE_ID" : "lists",
+#     'IBLOCK_TYPE_ID' : 'lists',
 # }
-# return _list_dataframe(client, "lists.get", "items", base_params, batch_size)
+# return _list_dataframe(client, 'lists.get', 'items', base_params, batch_size)
 # 
 # [{key: d[key]} for d in first_result for key in ['ID', 'CODE', 'API_CODE', 'NAME']]: 
 # [{'ID': '43'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Сферы интересов'}, {'ID': '39'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Категория пользователя'}, {'ID': '38'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Совокупность конкурсных групп'}, {'ID': '35'}, {'CODE': 'rannee priglashenie'}, {'API_CODE': 'ranneepriglashenie'}, {'NAME': 'Раннее приглашение'}, {'ID': '26'}, {'CODE': 'formy oprosa na portale'}, {'API_CODE': 'formyoprosanaportale'}, {'NAME': 'Формы опроса на портале'}, {'ID': '24'}, {'CODE': 'forma obucheniya'}, {'API_CODE': 'formaobucheniya'}, {'NAME': 'Форма обучения'}, {'ID': '23'}, {'CODE': 'kampusy'}, {'API_CODE': 'kampusy'}, {'NAME': 'Кампусы'}, {'ID': '22'}, {'CODE': 'fakultety'}, {'API_CODE': 'fakultety'}, {'NAME': 'Факультеты'}, {'ID': '21'}, {'CODE': 'obrazovatelnye programmy'}, {'API_CODE': 'obrazovatelnyeprogrammy'}, {'NAME': 'Образовательные программы'}, {'ID': '20'}, {'CODE': 'urovni obrazovaniya'}, {'API_CODE': 'urovniobrazovaniya'}, {'NAME': 'Уровни образования'}, {'ID': '18'}, {'CODE': 'strany'}, {'API_CODE': 'strany'}, {'NAME': 'Страны'}, {'ID': '17'}, {'CODE': 'goroda'}, {'API_CODE': 'goroda'}, {'NAME': 'Города'}, {'ID': '16'}, {'CODE': 'nabor na uchebnyj god'}, {'API_CODE': 'nabornauchebnyjgod'}, {'NAME': 'Набор на учебный год'}, {'ID': '5'}, {'CODE': 'clients_s1'}, {'API_CODE': None}, {'NAME': 'Клиенты'}]
@@ -229,27 +246,29 @@ def _list_dataframe(
     batch_size: int,
     debug: bool = False
 ) -> pd.DataFrame:
-    first_response = client.call(method, {**base_params, "start": 0})
-    first_result = first_response.get("result", [])
+    first_response = client.call(method, {**base_params, 'start': 0})
+    first_result = first_response.get('result', [])
     rows = list(first_result.get(result_key, []) if isinstance(first_result, Mapping) else first_result)
-    total = int(first_response.get("total", len(rows)))
+    total = int(first_response.get('total', len(rows)))
     if total <= BITRIX_PAGE_SIZE or debug:
         return pd.DataFrame(rows)
 
     max_batch_size = max(1, min(batch_size, BITRIX_BATCH_LIMIT))
     starts = list(range(BITRIX_PAGE_SIZE, total, BITRIX_PAGE_SIZE))
     total_batches = math.ceil(len(starts) / max_batch_size)
-    for batch_index in range(total_batches):
-        chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
-        commands = {
-            f"items_{start}": (method, {**base_params, "start": start})
-            for start in chunk_starts
-        }
-        for page in client.batch(commands).values():
-            if isinstance(page, Mapping):
-                rows.extend(page.get(result_key, []))
-            else:
-                rows.extend(page or [])
+    with tqdm(total=total_batches, desc='Загрузка по запросу ' + method, unit='batch') as pbar:
+        for batch_index in range(total_batches):
+            chunk_starts = starts[batch_index * max_batch_size : (batch_index + 1) * max_batch_size]
+            commands = {
+                f'items_{start}': (method, {**base_params, 'start': start})
+                for start in chunk_starts
+            }
+            for page in client.batch(commands).values():
+                if isinstance(page, Mapping):
+                    rows.extend(page.get(result_key, []))
+                else:
+                    rows.extend(page or [])
+            pbar.update()
 
     return pd.DataFrame(rows)
 
@@ -262,32 +281,32 @@ def _list_dataframe(
 #     extra_filter: Mapping[str, Any] | None,
 #     batch_size: int,
 # ) -> pd.DataFrame:
-#     """Collect all deals from a Bitrix CRM funnel into one DataFrame."""
+#     '''Collect all deals from a Bitrix CRM funnel into one DataFrame.'''
 
 #     if category_id is None:
-#         raise("No category ID") # get_deal_category_id(category_name, client)
+#         raise('No category ID') # get_deal_category_id(category_name, client)
 
-#     deal_filter: dict[str, Any] = {"CATEGORY_ID": category_id}
+#     deal_filter: dict[str, Any] = {'CATEGORY_ID': category_id}
 #     if extra_filter:
 #         deal_filter.update(extra_filter)
 #     base_params: dict[str, Any] = {
-#         "select": list(select),
-#         "filter": deal_filter,
-#         "order": {"ID": "ASC"},
+#         'select': list(select),
+#         'filter': deal_filter,
+#         'order': {'ID': 'ASC'},
 #     }
-#     return _list_dataframe(client, "crm.deal.list", "result", base_params, batch_size)
+#     return _list_dataframe(client, 'crm.deal.list', 'result', base_params, batch_size)
 
 
 # # TODO unused? only for testing?
 # def collect_360_deals_dataframe(
 #     client: BitrixRestClient | None = None,
-#     category_name: str = "Поступление 360",
+#     category_name: str = 'Поступление 360',
 #     category_id: int | None = None,
 #     select: Sequence[str] = DEFAULT_DEAL_SELECT,
 #     extra_filter: Mapping[str, Any] | None = None,
 #     batch_size: int = BITRIX_BATCH_LIMIT,
 # ) -> pd.DataFrame:
-#     """Compatibility helper for the admissions funnel deal export."""
+#     '''Compatibility helper for the admissions funnel deal export.'''
 
 #     rest = client if client is not None else create_bitrix_client(BITRIX_WEBHOOK_URL)
 #     return collect_deals_dataframe(rest, category_name, category_id, select, extra_filter, batch_size)
@@ -302,31 +321,31 @@ def _list_dataframe(
 #     batch_size: int,
 #     debug: bool = False
 # ) -> pd.DataFrame:
-#     """Collect Bitrix dynamic CRM items by entity type ID."""
+#     '''Collect Bitrix dynamic CRM items by entity type ID.'''
 
 #     if entity_type_id in [1, 2, 3, 4, 5, 31, 7, 8, 36, 39]:
 #         if debug:
 #             return pd.DataFrame() # for debug
-#         rest_request = "crm.item.list"
+#         rest_request = 'crm.item.list'
 #         base_params: dict[str, Any] = {
-#             "entityTypeId": entity_type_id,
-#             "select": ["*"], # TODO list(select), now for the case of problem
-#             "filter": dict(extra_filter),
-#             "order": {"id": "ASC"},
+#             'entityTypeId': entity_type_id,
+#             'select': ['*'], # TODO list(select), now for the case of problem
+#             'filter': dict(extra_filter),
+#             'order': {'id': 'ASC'},
 #         }
         
 #     else: 
-#         rest_request = "lists.element.get"
+#         rest_request = 'lists.element.get'
 #         base_params: dict[str, Any] = {
-#             "IBLOCK_TYPE_ID" : "lists",
-#             "IBLOCK_ID": entity_type_id,
-#             # "SELECT" : ["*"],
-#             # "FILTER" : dict(extra_filter), 
-#             "ELEMENT_ORDER": {"id": "ASC"},
+#             'IBLOCK_TYPE_ID' : 'lists',
+#             'IBLOCK_ID': entity_type_id,
+#             # 'SELECT' : ['*'],
+#             # 'FILTER' : dict(extra_filter), 
+#             'ELEMENT_ORDER': {'id': 'ASC'},
 #         }
 
         
-#     return _list_dataframe(client, rest_request, "items", base_params, batch_size, debug)
+#     return _list_dataframe(client, rest_request, 'items', base_params, batch_size, debug)
 # # TODO make list+get (faster version) https://habr.com/ru/articles/537694/
 
 def collect_bitrix_item_sources(
@@ -335,12 +354,14 @@ def collect_bitrix_item_sources(
     batch_size: int,
     debug: bool = False
 ) -> dict[str, pd.DataFrame]:
-    """Collect configured Bitrix dynamic CRM item sources."""
+    '''Collect configured Bitrix dynamic CRM item sources.'''
 
     tables: dict[str, pd.DataFrame] = {}
     for source in sources:
         base_params = source.request_base_params
-        base_params[source.select_name] = source.select if not debug else ('*',) if source.name != "educational_programs" else None
+        base_params[source.select_name] = source.select # if not debug else ('*',) if source.name != 'educational_programs' else None
         base_params[source.filter_name] = source.extra_filter
-        tables[source.name] = _list_dataframe(client, source.request_rest, "items", base_params, batch_size, debug)
+        tables[source.name] = _list_dataframe(client, source.request_rest, 'items', base_params, batch_size, debug)
+        if tables[source.name].empty:
+            tables[source.name] = pd.DataFrame(columns=source.select)
     return tables

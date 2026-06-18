@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from datetime import datetime
-
 import numpy as np
 import pandas as pd
 
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+
+from time_const import * 
 from bitrix import BitrixRestClient, collect_bitrix_item_sources
 from col_names import (
     col_ages,
@@ -40,6 +40,10 @@ from col_names import (
     col_plan_foreign,
     col_plan_rus,
     col_program,
+    main_studyonline,
+    leads_dates,
+    applications_dates,
+    contracts_dates,
 )
 from contracts import (
     BITRIX_CONTACTS,
@@ -63,7 +67,7 @@ class BitrixRawTables:
     crm_deals: pd.DataFrame
     portal_deals: pd.DataFrame
     applications: pd.DataFrame
-    contacts: pd.DataFrame
+    # contacts: pd.DataFrame
     educational_programs: pd.DataFrame
     # TODO uncomment
     # contracts: pd.DataFrame
@@ -80,22 +84,22 @@ class BitrixRawTables:
 #     portfolios: pd.DataFrame
 
 
-NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
-    "deal_id",
-    "contact_id",
-    "program_id",
-    "program",
-    # "program_shortname", # TODO uncomment
-    # "program_campus",
-    # "program_level",
-    # "program_form",
-    "application_date",
-    "contract_date",
-    "payment_date",
-    "enrollment_order",
-    "gender",
-    "birthdate",
-)
+# NORMALIZED_APPLICATION_COLUMNS: tuple[str, ...] = (
+#     "deal_id",
+#     "contact_id",
+#     "program_id",
+#     "program",
+#     # "program_shortname", # TODO uncomment
+#     # "program_campus",
+#     # "program_level",
+#     # "program_form",
+#     "application_date",
+#     "contract_date",
+#     "payment_date",
+#     "enrollment_order",
+#     "gender",
+#     "birthdate",
+# )
 
 REQUIRED_BITRIX_TABLE_NAMES = tuple(item.name for item in BITRIX_ADMISSIONS_ENTITIES) 
 # (
@@ -123,12 +127,12 @@ def _require_columns(frame: pd.DataFrame, entity: BitrixEntity) -> None:
         raise ValueError(f"Bitrix table {entity.name!r} is missing required columns: {missing_columns}")
 
 
-def _as_text_series(series: pd.Series) -> pd.Series:
-    return series.astype("string").str.strip()
+# def _as_text_series(series: pd.Series) -> pd.Series:
+#     return series.astype("string").str.strip()
 
 
-def _as_datetime_series(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, errors="raise", dayfirst=True) # may be coerce?
+# def _as_datetime_series(series: pd.Series) -> pd.Series:
+#     return pd.to_datetime(series, errors="raise", dayfirst=True) # may be coerce?
 
 
 # def _payment_dates_by_deal(contracts: pd.DataFrame) -> pd.DataFrame:
@@ -142,66 +146,90 @@ def _as_datetime_series(series: pd.Series) -> pd.Series:
 #     return prepared.groupby("deal_id", as_index=False)["payment_date"].min()
 
 
-def _normalize_and_merge_raw_data(raw_tables: BitrixRawTables) -> pd.DataFrame:
-    _require_columns(raw_tables.crm_deals, BITRIX_CRM_DEALS)
-    _require_columns(raw_tables.portal_deals, BITRIX_PORTAL_DEALS)
-    _require_columns(raw_tables.applications, BITRIX_APPLICATIONS)
-    _require_columns(raw_tables.contacts, BITRIX_CONTACTS)
-    _require_columns(raw_tables.educational_programs, BITRIX_EDUCATIONAL_PROGRAMS)
+def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
+    # _require_columns(raw_tables.crm_deals, BITRIX_CRM_DEALS)
+    # _require_columns(raw_tables.portal_deals, BITRIX_PORTAL_DEALS)
+    # _require_columns(raw_tables.applications, BITRIX_APPLICATIONS)
+    # _require_columns(raw_tables.contacts, BITRIX_CONTACTS)
+    # _require_columns(raw_tables.educational_programs, BITRIX_EDUCATIONAL_PROGRAMS)
 
-    deals = raw_tables.crm_deals.copy() # START strange things with convertion, NaN & NaT
-    deals["deal_id"] = _as_text_series(deals["id"])
-    deals["contact_id"] = _as_text_series(deals["contactId"])
-    deals["program_id"] = _as_text_series(deals["ufDealEducationProgram"])
-    deals["application_date"] = _as_datetime_series(deals["ufDealDataRegistracii"]) # TODO check
-    deals["contract_date"] = _as_datetime_series(deals["ufDealContractdate"])
-    deals["enrollment_order"] = _as_text_series(deals["ufDealPrikazOZachislenii"])
+    # TODO перенести все строковые константы в col_names.py
+    raw_tables.crm_deals['ufDealEducationProgram'] = raw_tables.crm_deals['ufDealEducationProgram'].fillna(0).astype(int, errors='raise') # TODO repair, пустые - преимущественно, но не только разводящий лендинг, но и другие программы (см. вкладку Пустоты в ufDealProgram в файле 2026_06_18_..xlsx)
+    raw_tables.portal_deals['ufDealEducationProgram'] = raw_tables.portal_deals['ufDealEducationProgram'].fillna(-1).astype(int, errors='raise') # TODO check -1 - не наша программа
+    raw_tables.applications['ufDealEducationProgram'] = raw_tables.applications['ufDealEducationProgram'].fillna(-2).astype(int, errors='raise') # TODO repair - там и наши ленды, и не наши ленды, см. Пустоты в ufDealProgram_APP
 
-    contacts = raw_tables.contacts.copy()
-    contacts["contact_id"] = _as_text_series(contacts["id"])
-    # contacts["gender"] = _as_text_series(contacts["pol"]) # TODO complete gender
-    contacts["birthdate"] = _as_datetime_series(contacts["birthdate"])
+    import dataclasses
+    print(BITRIX_PORTAL_DEALS.__dataclass_params__.frozen)
+    raw_tables.educational_programs = raw_tables.educational_programs[['ID', 'NAME']] # убираем ненужные столбцы, альтернативно можно не забирать их с помощью SELECT
+    raw_tables.educational_programs['ID'] = raw_tables.educational_programs['ID'].astype(int, errors='raise') # в целом тут пустых быть не должно
+    raw_tables.educational_programs = raw_tables.educational_programs.rename(columns={'ID': 'ufDealEducationProgram', 'NAME': col_program}) # переименовываем столбцы для удобства merge
+    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': 0, col_program: main_studyonline})
+    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -1, col_program: 'Не указана программа в воронке Портала ВШЭ'})
+    raw_tables.educational_programs = raw_tables.educational_programs.append({'ufDealEducationProgram': -2, col_program: 'Не указана программа в воронке МАГ/БАК'})
 
-    programs = raw_tables.educational_programs.copy()
-    programs["program_id"] = _as_text_series(programs["ID"])
-    programs["program"] = _as_text_series(programs["NAME"])
-    # programs["program_level"] = _as_text_series(programs["uroven_obrazovanya"]) # TODO get from deal
-    # programs["program_campus"] = _as_text_series(programs["campus"]) # TODO get from deal
-    # if "shortname" not in programs.columns:
-    #     programs["shortname"] = programs["name"]
-    # if "forma_obuchenya" not in programs.columns:
-    #     programs["forma_obuchenya"] = ""
-    # programs["program_shortname"] = _as_text_series(programs["shortname"])
-    # programs["program_form"] = _as_text_series(programs["forma_obuchenya"])
+    raw_tables.crm_deals    = pd.merge(raw_tables.crm_deals,    raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
+    raw_tables.portal_deals = pd.merge(raw_tables.portal_deals, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
+    raw_tables.applications = pd.merge(raw_tables.applications, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
+    
+    raw_tables.crm_deals[leads_dates]    = pd.to_datetime(raw_tables.crm_deals['createdTime'], errors='raise')
+    raw_tables.portal_deals[leads_dates] = pd.to_datetime(raw_tables.portal_deals['createdTime'], errors='raise')
+    raw_tables.applications[applications_dates] = pd.to_datetime(raw_tables.applications['createdTime'], errors='raise')
+    raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise')
+    
+    print("EEEEEE")
+    # deals = raw_tables.crm_deals.copy() # START strange things with convertion, NaN & NaT
+    # deals["deal_id"] = _as_text_series(deals["id"]) # .astype("string").str.strip()
+    # deals["contact_id"] = _as_text_series(deals["contactId"])
+    # deals["program_id"] = _as_text_series(deals["ufDealEducationProgram"])
+    # deals["application_date"] = _as_datetime_series(deals["ufDealDataRegistracii"]) # TODO check pd.to_datetime(series, errors="raise", dayfirst=True) # may be coerce?
+    # deals["contract_date"] = _as_datetime_series(deals["ufDealContractdate"])
+    # deals["enrollment_order"] = _as_text_series(deals["ufDealPrikazOZachislenii"])
 
-    # TODO complete contracts
-    # payments = _payment_dates_by_deal(raw_tables.contracts)
-    applications = (
-        deals.merge(
-            contacts.loc[:, ["contact_id", "gender", "birthdate"]],
-            how="left",
-            on="contact_id",
-            validate="many_to_one",
-        )
-        .merge(
-            programs.loc[
-                :,
-                [
-                    "program_id",
-                    "program",
-                    # "program_shortname",
-                    # "program_campus",
-                    # "program_level",
-                    # "program_form",
-                ],
-            ],
-            how="left",
-            on="program_id",
-            validate="many_to_one",
-        )
-        #.merge(payments, how="left", on="deal_id", validate="one_to_one")
-    )
-    return applications.loc[:, NORMALIZED_APPLICATION_COLUMNS]
+    # contacts = raw_tables.contacts.copy()
+    # contacts["contact_id"] = _as_text_series(contacts["id"])
+    # # contacts["gender"] = _as_text_series(contacts["pol"]) # TODO complete gender
+    # contacts["birthdate"] = _as_datetime_series(contacts["birthdate"])
+
+    # programs = raw_tables.educational_programs.copy()
+    # programs["program_id"] = _as_text_series(programs["ID"])
+    # programs["program"] = _as_text_series(programs["NAME"])
+    # # programs["program_level"] = _as_text_series(programs["uroven_obrazovanya"]) # TODO get from deal
+    # # programs["program_campus"] = _as_text_series(programs["campus"]) # TODO get from deal
+    # # if "shortname" not in programs.columns:
+    # #     programs["shortname"] = programs["name"]
+    # # if "forma_obuchenya" not in programs.columns:
+    # #     programs["forma_obuchenya"] = ""
+    # # programs["program_shortname"] = _as_text_series(programs["shortname"])
+    # # programs["program_form"] = _as_text_series(programs["forma_obuchenya"])
+
+    # # TODO complete contracts
+    # # payments = _payment_dates_by_deal(raw_tables.contracts)
+    # applications = (
+    #     deals.merge(
+    #         contacts.loc[:, ["contact_id", "gender", "birthdate"]],
+    #         how="left",
+    #         on="contact_id",
+    #         validate="many_to_one",
+    #     )
+    #     .merge(
+    #         programs.loc[
+    #             :,
+    #             [
+    #                 "program_id",
+    #                 "program",
+    #                 # "program_shortname",
+    #                 # "program_campus",
+    #                 # "program_level",
+    #                 # "program_form",
+    #             ],
+    #         ],
+    #         how="left",
+    #         on="program_id",
+    #         validate="many_to_one",
+    #     )
+    #     #.merge(payments, how="left", on="deal_id", validate="one_to_one")
+    # )
+    return raw_tables #applications.loc[:, NORMALIZED_APPLICATION_COLUMNS]
 
 
 # def _normalize_exams(exams: pd.DataFrame, applications: pd.DataFrame) -> pd.DataFrame:
@@ -348,7 +376,7 @@ def collect_bitrix_raw_tables(
         crm_deals=tables["crm_deals"],
         portal_deals=tables["portal_deals"],
         applications=tables["applications"],
-        contacts=tables["contacts"],
+        #contacts=tables["contacts"],
         educational_programs=tables["educational_programs"],
         # TODO in future
         # contracts=tables["contracts"],
@@ -535,7 +563,7 @@ def process_current_files_from_bitrix(
     """Build current dashboard data from Bitrix tables only."""
 
     raw_tables = collect_bitrix_raw_tables(client, sources, batch_size, debug)
-    data = _normalize_and_merge_raw_data(raw_tables)
+    data = _normalize_raw_data(raw_tables)
     # admissions_data = normalize_bitrix_admissions_data(raw_tables)
     dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, data, as_of)
     dashboard = _finalize_dashboard_calculations(dashboard)
