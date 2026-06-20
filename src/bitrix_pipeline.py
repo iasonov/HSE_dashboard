@@ -8,7 +8,7 @@ import pandas as pd
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from time_const import * 
+from time_const import *
 from bitrix import BitrixRestClient, collect_bitrix_item_sources
 from col_names import *
 # \(
@@ -103,7 +103,7 @@ class BitrixRawTables:
 #     "birthdate",
 # )
 
-REQUIRED_BITRIX_TABLE_NAMES = tuple(item.name for item in BITRIX_ADMISSIONS_ENTITIES) 
+REQUIRED_BITRIX_TABLE_NAMES = tuple(item.name for item in BITRIX_ADMISSIONS_ENTITIES)
 # (
 #     "crm_deals",
 #     "contacts",
@@ -174,12 +174,12 @@ def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
     raw_tables.crm_deals    = pd.merge(raw_tables.crm_deals,    raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
     raw_tables.portal_deals = pd.merge(raw_tables.portal_deals, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
     raw_tables.applications = pd.merge(raw_tables.applications, raw_tables.educational_programs, on="ufDealEducationProgram", how="left").drop(columns=['ufDealEducationProgram'])
-    
+
     raw_tables.crm_deals[leads_dates]           = pd.to_datetime(raw_tables.crm_deals['createdTime'], errors='raise').dt.tz_localize(None)
     raw_tables.portal_deals[leads_dates]        = pd.to_datetime(raw_tables.portal_deals['createdTime'], errors='raise').dt.tz_localize(None)
     raw_tables.applications[applications_dates] = pd.to_datetime(raw_tables.applications['createdTime'], errors='raise').dt.tz_localize(None)
     raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise').dt.tz_localize(None) # TODO check
-    
+
     # deals = raw_tables.crm_deals.copy() # START strange things with convertion, NaN & NaT
     # deals["deal_id"] = _as_text_series(deals["id"]) # .astype("string").str.strip()
     # deals["contact_id"] = _as_text_series(deals["contactId"])
@@ -487,10 +487,11 @@ def _finalize_dashboard_calculations(dashboard: pd.DataFrame) -> pd.DataFrame:
     result[col_payments_div_plan_rus] = result[col_payments] / result[col_plan_rus]
     result[col_payments_div_plan_foreign] = result[col_payments_foreign] / result[col_plan_foreign]
     result[col_income_1year] = result["price"] * result[col_payments] / 1000
-    result.loc[result["level"] == "master", col_income_all] = result[col_income_1year] * 2
-    result.loc[result["level"] == "bachelor", col_income_all] = result[col_income_1year] * 4
-    result[col_income_1year_hse] = result[col_income_1year] * result["income_percent"] / 100
-    result[col_income_all_hse] = result[col_income_all] * result["income_percent"] / 100
+    # TODO income calculations
+    # result.loc[result["level"] == "master", col_income_all] = result[col_income_1year] * 2
+    # result.loc[result["level"] == "bachelor", col_income_all] = result[col_income_1year] * 4
+    # result[col_income_1year_hse] = result[col_income_1year] * result["income_percent"] / 100
+    # result[col_income_all_hse] = result[col_income_all] * result["income_percent"] / 100
     if col_enrollments_foreign not in result.columns:
         result[col_enrollments_foreign] = 0
 
@@ -513,6 +514,12 @@ def apply_bitrix_metrics_to_dashboard(
     # crm_leads_by_program = pd.DataFrame({col_program_bitrix:crm_leads_by_program.index, 'values':crm_leads_by_program.values})
     # result[col_leads] = insert_values(result, crm_leads_by_program, col_program_bitrix, col_leads)
 
+    main_leads = admissions_data.crm_deals[admissions_data.crm_deals[col_program_bitrix] == main_studyonline][col_program_bitrix].count()
+    main_leads_after_april = admissions_data.crm_deals[(admissions_data.crm_deals[col_program_bitrix] == main_studyonline) & (admissions_data.crm_deals[leads_dates] >= DATE_01_04_2026)][col_program_bitrix].count()
+
+    main_leads_counts = pd.DataFrame(columns=result.columns, data=[{col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_program_bitrix: main_studyonline, col_program: main_studyonline}])
+    result = pd.concat([main_leads_counts, result])
+
     leads_counts = admissions_data.crm_deals.groupby(col_program_bitrix)[leads_dates].size()
     result[col_leads] = result[col_program_bitrix].map(leads_counts).fillna(0).astype(int)
 
@@ -523,7 +530,7 @@ def apply_bitrix_metrics_to_dashboard(
     result[col_leads_delta] = result[col_program_bitrix].map(leads_delta).fillna(0).astype(int)
 
     portal_counts = admissions_data.portal_deals.groupby(col_program_bitrix)[leads_dates].size()
-    result[col_leads_partners] = result[col_program_bitrix].map(portal_counts).fillna(0).astype(int) 
+    result[col_leads_partners] = result[col_program_bitrix].map(portal_counts).fillna(0).astype(int)
 
     result[col_leads_total] = result[col_leads] + result[col_leads_partners]
 
@@ -533,17 +540,17 @@ def apply_bitrix_metrics_to_dashboard(
     contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
     result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
 
-    # TODO лиды по общему ленду, оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
+    # TODO оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
 
-    # Пока не работает:
-    # leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
-    # result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna(0).astype(int)
+    leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
+    result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna("").astype(str)
 
-    # applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
-    # result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
-    
-    # contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
-    # result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
+    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
+    result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
+
+    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
+    result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
+
 
     result.replace(np.inf, 0, inplace=True)
     result.fillna(0, inplace=True)
@@ -567,7 +574,7 @@ def process_current_files_from_bitrix(
     dashboard = apply_bitrix_metrics_to_dashboard(dashboard_template, data, as_of)
     dashboard = _finalize_dashboard_calculations(dashboard)
     dashboard = dashboard.drop(columns=[column for column in TECHNICAL_DASHBOARD_COLUMNS if column in dashboard.columns])
-    
+
     #TODO add history_data processing and general columns in dashboard
     return dashboard, history_dataframes[0].copy()
 

@@ -29,7 +29,7 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legac
 
 
 if __name__ == '__main__':
-    
+
     working_mode = False
     if working_mode:
         count_delta = True
@@ -41,5 +41,5 @@ if __name__ == '__main__':
         update_dashboard = False
         legacy = False
         debug = False
-        
+
     run_dashboard(count_delta=count_delta, update_dashboard=update_dashboard, legacy=legacy, debug=debug)

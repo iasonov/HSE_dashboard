@@ -91,7 +91,7 @@ def process_history_files():
         leads_dates_2024_by_program = pd.read_excel(templates_folder + bitrix_file_2024, usecols='J:N') #, parse_dates=[0], date_format='%d.%m.%Y  %hh:%mm:%ss')
         leads_dates_2024_by_program[leads_dates] = pd.to_datetime(leads_dates_2024_by_program[leads_dates], errors='coerce', format='%d.%m.%Y  %hh:%mm:%ss')
         leads_dates_2024_by_program[col_programs_names] = leads_dates_2024_by_program[col_programs_names].fillna(main_studyonline)
-        
+
         print('Лиды в привязке к программам 2024 считаны')
 
         leads_dates_2025_by_program = pd.read_excel(templates_folder + bitrix_file_2025) #, parse_dates=[0], date_format='%d.%m.%Y  %hh:%mm:%ss')
@@ -101,7 +101,7 @@ def process_history_files():
         leads_dates_2025_before_april_by_program = pd.read_excel(templates_folder + bitrix_file_2025_before_april) #, parse_dates=[0], date_format='%d.%m.%Y  %hh:%mm:%ss')
         leads_dates_2025_before_april_by_program[leads_dates] = pd.to_datetime(leads_dates_2025_before_april_by_program[leads_dates], errors='coerce', format='%d.%m.%Y  %hh:%mm:%ss')
         leads_dates_2025_before_april_by_program[col_programs_names] = leads_dates_2025_before_april_by_program[col_programs_names].fillna(main_studyonline)
-        
+
 
         print('Лиды в привязке к программам 2025 считаны')
 
@@ -128,10 +128,10 @@ def process_history_files():
         asav_2024[contracts_dates] = pd.to_datetime(asav_2024[contracts_dates], errors='coerce', format='%d.%m.%Y')
 
         print('Данные АСАВ 2024 года считаны')
-        
+
         asav_2025 = pd.read_excel(templates_folder + asav_file_2025, parse_dates=[0, 1], skiprows=1, date_format='%d.%m.%Y')
         asav_2025[applications_dates] = pd.to_datetime(asav_2025[applications_dates], format='%Y-%m-%d 00:00:00') # CHECK
-        asav_2025[contracts_dates] = pd.to_datetime(asav_2025[contracts_dates], errors='coerce', format='%d.%m.%Y')                               
+        asav_2025[contracts_dates] = pd.to_datetime(asav_2025[contracts_dates], errors='coerce', format='%d.%m.%Y')
 
         print('Данные АСАВ 2025 года считаны')
 
@@ -152,7 +152,7 @@ def process_history_files():
     delta_now_2023 = timedelta(days=365+366+365)
     delta_now_2024 = timedelta(days=365+365)
     delta_now_2025 = timedelta(days=365)
-    
+
     asav_2023_no_duplicates = asav_2023.drop_duplicates(subset=[col_id_asav])
     asav_2024_no_duplicates = asav_2024.drop_duplicates(subset=[col_id_asav])
     bachelor_2024_no_duplicates = bachelor_2024.drop_duplicates(subset=[col_id_bachelor])
@@ -168,21 +168,21 @@ def process_history_files():
                                 {2023: asav_2023[asav_2023[applications_dates] + delta_now_2023 <= now][applications_dates].count(),
                                  2024: asav_2024[asav_2024[applications_dates] + delta_now_2024 <= now][applications_dates].count() + bachelor_2024[bachelor_2024[applications_dates] + delta_now_2024 <= now][applications_dates].count(),
                                  2025: asav_2025[asav_2025[applications_dates] + delta_now_2025 <= now][applications_dates].count() + bachelor_2025[bachelor_2025[applications_dates] + delta_now_2025 <= now][applications_dates].count()},
-                         
+
                                 'contracts' :
                                 {2023: asav_2023[asav_2023[contracts_dates] + delta_now_2023 <= now][contracts_dates].count(),
                                  2024: asav_2024[asav_2024[contracts_dates] + delta_now_2024 <= now][contracts_dates].count() + bachelor_2024[bachelor_2024[contracts_dates] + delta_now_2024 <= now][contracts_dates].count(),
                                  2025: asav_2025[asav_2025[contracts_dates] + delta_now_2025 <= now][contracts_dates].count() + bachelor_2025[bachelor_2025[contracts_dates] + delta_now_2025 <= now][contracts_dates].count()},
-                       
+
                                 'applications_unique' :
                                 {2023: asav_2023_no_duplicates[asav_2023_no_duplicates[applications_dates] + delta_now_2023 <= now][applications_dates].count(),
                                  2024: asav_2024_no_duplicates[asav_2024_no_duplicates[applications_dates] + delta_now_2024 <= now][applications_dates].count() + bachelor_2024_no_duplicates[bachelor_2024_no_duplicates[applications_dates] + delta_now_2024 <= now][applications_dates].count(),
                                  2025: asav_2025_no_duplicates[asav_2025_no_duplicates[applications_dates] + delta_now_2025 <= now][applications_dates].count() + bachelor_2025_no_duplicates[bachelor_2025_no_duplicates[applications_dates] + delta_now_2025 <= now][applications_dates].count()}
-                     
+
                                 })
     df_leads_after_april_prev = leads_dates_2025_by_program[leads_dates_2025_by_program[leads_dates] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count()
     df_leads_all_prev         = df_leads_after_april_prev.add(leads_dates_2025_before_april_by_program[leads_dates_2025_before_april_by_program[leads_dates] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count(), fill_value=0)
-    
+
     df_applications_prev = pd.concat([asav_2025[asav_2025[applications_dates] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
                                      bachelor_2025[bachelor_2025[applications_dates] + delta_now_2025 <= now].groupby(bachelor_col_programs)[bachelor_col_programs].count()])
     df_contracts_prev    = pd.concat([asav_2025[asav_2025[contracts_dates] + delta_now_2025 <= now].groupby(master_col_programs)[master_col_programs].count(),
@@ -217,7 +217,7 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     df_temp[col_date] = pd.to_datetime(df_temp[col_date], format=format)
 
     # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
-    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн
+    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн; df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').dt.start_time
 
     # Группируем по программе и неделе
     weekly_counts = df_temp.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
@@ -240,14 +240,15 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     merged[col_values] = merged[col_values].fillna(0).astype(int)
 
     # Группируем по программе и объединяем значения в строку через ';'
-    return merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index()
+    result = merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index(name=col_values)
+    return result.set_index(col_program, verify_integrity=True, drop=True).squeeze() #.to_dict(orient='index')
 
 def find_first_file(mask: str, default: str, folder: str = '') -> str:
     file_list = glob.glob(folder + mask)
     if len(file_list) > 0:
         if file_list[0].find('~') == -1:
             return file_list[0]
-        else: 
+        else:
             return file_list[1]
     else:
         return folder + default
@@ -263,7 +264,7 @@ def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
 
     # костыль от переименования коллегами названий в битрексе по ходу ПК, можно придумать как исправить в TODO
     df.loc[df[col_programs_names] == 'ИНТДИЗ. Интерактивный дизайн / Москва / 540401 Дизайн / факультет креативных индустрий / Магистратура', col_programs_names] = 'ИНТДИЗ. Интерактивный дизайн'
-    
+
     return df
 
 
@@ -339,12 +340,12 @@ def process_current_files_legacy(debug=None):
 
     # TODO заменить на API
     now = datetime.now()
-    
+
 
     if (now >= DATE_01_04_2026):
         try: # Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса в html-формате')
-            df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0] 
+            df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0]
             df_bitrix_after_april = preprocess_bitrix_file(df_bitrix_after_april)
             df_bitrix_after_april[bitrix_col_date] = pd.to_datetime(df_bitrix_after_april[bitrix_col_date], dayfirst=True, errors='raise') # , format='%d.%m.%Y  %H:%M'
 
@@ -667,7 +668,7 @@ def process_current_files_legacy(debug=None):
         # df_master = pd.DataFrame(columns=[master_col_programs, master_col_contracts, master_col_payments, master_col_enrollments])
 
     # расчет данных прошлых лет
-    df_history, df_leads_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev = process_history_files() 
+    df_history, df_leads_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev = process_history_files()
 
     masters_list = df_online_master_programs[col_program].unique()
     master_2026_no_duplicates = df_master[df_master[master_col_programs].isin(masters_list)].drop_duplicates(subset=[master_col_reg_number])
@@ -694,11 +695,11 @@ def process_current_files_legacy(debug=None):
         main_leads_prev = 0
 
     df_main_dashboard = pd.DataFrame(columns=df_master_dashboard.columns)
-    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline, 
-                                                     col_program_bitrix: main_studyonline, 
-                                                     col_leads: main_leads, 
+    df_main_dashboard.loc[len(df_main_dashboard)] = {col_program: main_studyonline,
+                                                     col_program_bitrix: main_studyonline,
+                                                     col_leads: main_leads,
                                                      col_leads_prev : main_leads_prev,
-                                                     col_leads_after_april: main_leads_after_april, 
+                                                     col_leads_after_april: main_leads_after_april,
                                                      col_leads_after_april_prev: main_leads_after_april_prev}
     df = pd.concat([df_main_dashboard, df_master_dashboard, df_bachelor_dashboard], ignore_index=True, sort=False)
 
@@ -711,7 +712,7 @@ def process_current_files_legacy(debug=None):
 
     # считываем тренды по неделям (заявки)
     if now > DATE_01_04_2026:
-        df_bitrix_before_april.rename(columns={leads_dates: bitrix_col_date}, inplace=True) 
+        df_bitrix_before_april.rename(columns={leads_dates: bitrix_col_date}, inplace=True)
 
     df_bitrix = pd.concat([df_bitrix_before_april, df_bitrix_after_april])
 
