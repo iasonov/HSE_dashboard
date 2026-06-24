@@ -22,7 +22,7 @@ bitrix_col_date = 'Дата создания'
 bitrix_col_contact = 'Контакт'
 bitrix_col_deal_name = 'Название сделки'
 
-bachelor_col_date = 'Дата'
+bachelor_col_date = 'Date'
 bachelor_col_date_contract = 'Дата заключения'
 bachelor_col_programs = 'Конкурсная группа' # названия вида 'Глобальные цифровые коммуникации (Медиа) - онлайн (О К)'
 bachelor_col_programs_contracts = 'Образовательная программа'

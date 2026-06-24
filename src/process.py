@@ -227,7 +227,7 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     if all_programs.size == 0:
         weekly_counts.loc[0, 'week_start'] = datetime.now()
 
-    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=9, day=29, hour=0, minute=0, second=0),
+    all_weeks = pd.date_range(start=pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0),
                             end=weekly_counts['week_start'].max(),
                             freq='W-MON')  # каждую неделю по вторникам TODO: check различия MON & TUE
 
@@ -534,7 +534,8 @@ def process_current_files_legacy(debug=None):
 
     df_master = df_master.dropna(subset=[col_birthday]) # удаляем пустые строки
 
-    df_master_applications_by_week = process_by_week(df_master, master_col_programs, applications_dates, 'count', '%d.%m.%Y') # TODO check - здесь отфильтровывался костыль из-за изменений в АСАВ 31.08
+    # TODO uncomment later
+    # df_master_applications_by_week = process_by_week(df_master, master_col_programs, applications_dates, 'count', '%d.%m.%Y') # TODO check - здесь отфильтровывался костыль из-за изменений в АСАВ 31.08
     #df_master = df_master[df_master['Основание зачисления/выбытия'] != 'Завершение приемной кампании'] # TODO check - здесь отфильтровывался костыль из-за изменений в АСАВ 31.08
 
 
@@ -562,7 +563,7 @@ def process_current_files_legacy(debug=None):
     df_master_dashboard[col_enrollments] = insert_values(df_master_dashboard, master_enrollments, col_program, col_enrollments)
 
     # TODO проверить 20.06
-    if (now >= datetime(year=2026, month=6, day=20)):
+    if False: #(now >= datetime(year=2026, month=6, day=20)):
         master_male = df_master[df_master[col_gender_asav] == 'Муж.'].groupby(master_col_programs)[master_col_programs].count()
         master_male = pd.DataFrame({col_program:master_male.index, 'values':master_male.values})
         df_master_dashboard[col_male] = insert_values(df_master_dashboard, master_male, col_program, col_male)
@@ -599,14 +600,23 @@ def process_current_files_legacy(debug=None):
         df_master_dashboard[col_ages_mean] = insert_values(df_master_dashboard, master_years_mean, col_program, col_ages_mean)
 
     print('Считаем регистрации и договоры по неделям')
-    # считаем регистрации и договоры по неделям
+    # считаем регистрации и договоры по неделям TODO uncomment later
     # df_master_applications_by_week = process_by_week(df_master, master_col_programs, applications_dates, 'count', '%d.%m.%Y') # сделано раньше как костыль из-за изменений в АСАВ 31.08
-    df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
-    df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
+    # try:
+    #     df_master_applications_by_week = pd.DataFrame({col_program:df_master_applications_by_week[master_col_programs], 'values':df_master_applications_by_week['count']})
+    # except:
+    #     print('Problem with master applications by week')
+    #     df_master_applications_by_week = pd.DataFrame(columns=[col_program, col_applications_by_week])
+    # df_master_dashboard[col_applications_by_week] = insert_values(df_master_dashboard, df_master_applications_by_week, col_program, col_applications_by_week)
     df_master[contracts_dates] = df_master[master_col_contracts].str[-10:]
-    df_master_contracts_by_week = process_by_week(df_master, master_col_programs, contracts_dates, 'count', '%Y-%m-%d')
-    df_master_contracts_by_week = pd.DataFrame({col_program:df_master_contracts_by_week[master_col_programs], 'values':df_master_contracts_by_week['count']})
-    df_master_dashboard[col_contracts_by_week] = insert_values(df_master_dashboard, df_master_contracts_by_week, col_program, col_contracts_by_week)
+    # TODO uncomment later
+    # df_master_contracts_by_week = process_by_week(df_master, master_col_programs, contracts_dates, 'count', '%Y-%m-%d')
+    # try:
+    #     df_master_contracts_by_week = pd.DataFrame({col_program:df_master_contracts_by_week[master_col_programs], 'values':df_master_contracts_by_week['count']})
+    # except:
+    #     print('Problem with master contracts by week')
+    #     df_master_contracts_by_week = pd.DataFrame(columns=[col_program, col_contracts_by_week])
+    # df_master_dashboard[col_contracts_by_week] = insert_values(df_master_dashboard, df_master_contracts_by_week, col_program, col_contracts_by_week)
 
 
     # АИС ПК
@@ -618,10 +628,10 @@ def process_current_files_legacy(debug=None):
         bachelor_applications = pd.DataFrame({col_program:bachelor_applications.index, 'values':bachelor_applications.values})
         df_bachelor_dashboard[col_applications] = insert_values(df_bachelor_dashboard, bachelor_applications, col_program, col_applications)
 
-        # считаем регистрации по неделям
-        df_bachelor_applications_by_week = process_by_week(df_bachelor_app, bachelor_col_programs, bachelor_col_date)
-        df_bachelor_applications_by_week = pd.DataFrame({col_program:df_bachelor_applications_by_week[bachelor_col_programs], 'values':df_bachelor_applications_by_week['count']})
-        df_bachelor_dashboard[col_applications_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_applications_by_week, col_program, col_applications_by_week)
+        # считаем регистрации по неделям TODO uncomment later
+        # df_bachelor_applications_by_week = process_by_week(df_bachelor_app, bachelor_col_programs, bachelor_col_date, 'count', '%d/%m/%Y %H:%M:%S')
+        # df_bachelor_applications_by_week = pd.DataFrame({col_program:df_bachelor_applications_by_week[bachelor_col_programs], 'values':df_bachelor_applications_by_week['count']})
+        # df_bachelor_dashboard[col_applications_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_applications_by_week, col_program, col_applications_by_week)
 
     except pd.errors.EmptyDataError:
         print(bachelor_app_file + ' is empty')
@@ -641,12 +651,12 @@ def process_current_files_legacy(debug=None):
         bachelor_payments = pd.DataFrame({col_program:bachelor_payments.index, 'values':bachelor_payments.values})
         df_bachelor_dashboard[col_payments] = insert_values(df_bachelor_dashboard, bachelor_payments, col_program, col_payments)
 
-        # считаем договоры по неделям
-        df_bachelor_contracts_by_week = process_by_week(df_bachelor_con, bachelor_col_programs_contracts, bachelor_col_date_contract, 'count', '%d.%m.%Y')
-        df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.groupby(bachelor_col_programs_contracts)['count'].sum()
-        df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.rename(index=bachelor_dict)
-        df_bachelor_contracts_by_week = pd.DataFrame({col_program:df_bachelor_contracts_by_week.index, 'values':df_bachelor_contracts_by_week.values})
-        df_bachelor_dashboard[col_contracts_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_contracts_by_week, col_program, col_contracts_by_week)
+        # считаем договоры по неделям TODO uncomment later
+        # df_bachelor_contracts_by_week = process_by_week(df_bachelor_con, bachelor_col_programs_contracts, bachelor_col_date_contract, 'count', '%d.%m.%Y')
+        # df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.groupby(bachelor_col_programs_contracts)['count'].sum()
+        # df_bachelor_contracts_by_week = df_bachelor_contracts_by_week.rename(index=bachelor_dict)
+        # df_bachelor_contracts_by_week = pd.DataFrame({col_program:df_bachelor_contracts_by_week.index, 'values':df_bachelor_contracts_by_week.values})
+        # df_bachelor_dashboard[col_contracts_by_week] = insert_values(df_bachelor_dashboard, df_bachelor_contracts_by_week, col_program, col_contracts_by_week)
 
     except pd.errors.EmptyDataError:
         print(bachelor_con_file + ' is empty')
@@ -716,9 +726,10 @@ def process_current_files_legacy(debug=None):
 
     df_bitrix = pd.concat([df_bitrix_before_april, df_bitrix_after_april])
 
-    df_leads_by_week = process_by_week(df_bitrix, col_programs_names, bitrix_col_date)
-    df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week[col_programs_names], 'values':df_leads_by_week['count']})
-    df[col_leads_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_by_week)
+    # TODO uncomment later
+    # df_leads_by_week = process_by_week(df_bitrix, col_programs_names, bitrix_col_date)
+    # df_leads_by_week = pd.DataFrame({col_program_bitrix:df_leads_by_week[col_programs_names], 'values':df_leads_by_week['count']})
+    # df[col_leads_by_week] = insert_values(df, df_leads_by_week, col_program_bitrix, col_leads_by_week)
 
     df[col_leads_after_april_prev] = insert_values(df, df_leads_after_april_prev, col_program_bitrix, col_leads_after_april_prev)
     df[col_leads_prev] = insert_values(df, df_leads_prev, col_program_bitrix, col_leads_prev)

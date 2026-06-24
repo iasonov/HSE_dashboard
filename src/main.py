@@ -30,10 +30,10 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legac
 
 if __name__ == '__main__':
 
-    working_mode = False
+    working_mode = True
     if working_mode:
         count_delta = True
-        update_dashboard = True
+        update_dashboard = False
         legacy = True
         debug = False
     else: #testing bitrix

@@ -546,10 +546,10 @@ def apply_bitrix_metrics_to_dashboard(
     result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna("").astype(str)
 
     applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
-    result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna(0).astype(int)
+    result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna("").astype(str)
 
     contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
-    result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna(0).astype(int)
+    result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna("").astype(str)
 
 
     result.replace(np.inf, 0, inplace=True)
