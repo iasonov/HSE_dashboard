@@ -6,8 +6,8 @@ from datetime import datetime
 from pathlib import Path
 import pandas as pd
 
-from process import process_current_files
-from update import update_sheet
+from general_pipeline import calculate_dashboard
+from update_pipeline import update_sheet
 
 
 def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legacy:bool = False, debug:bool = False) -> Path:
@@ -20,7 +20,7 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legac
     timestamp = datetime.now().strftime('%Y.%m.%d-%H.%M.%S')
     output_path = output_dir / f'dashboard{timestamp}.xlsx'
 
-    current_data, history_data = process_current_files(debug, legacy)
+    current_data, history_data = calculate_dashboard(debug, legacy)
     current_data.to_excel(output_path)
     if update_dashboard:
         update_sheet(pd.read_excel(output_path), count_delta, history_data)
@@ -30,15 +30,15 @@ def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legac
 
 if __name__ == '__main__':
 
-    working_mode = False
-    if working_mode:
+    bitrix_mode = True
+    if not bitrix_mode:
         count_delta = True
         update_dashboard = True
         legacy = True
         debug = False
     else: #testing bitrix
-        count_delta = False
-        update_dashboard = False
+        count_delta = True
+        update_dashboard = True
         legacy = False
         debug = False
 

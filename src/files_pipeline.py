@@ -1,57 +1,21 @@
 import glob
 import pandas as pd
 import numpy as np
-from collections.abc import Mapping
 
 from col_names import *
 from time_const import *
 
+from general_pipeline import insert_values, process_by_week
 
-def categorize_ages(age_column):
-    # Определяем диапазоны
-    bins = [0, 17, 23, 29, 35, 41, 47, float('inf')]
-    labels = ['0-17', '18-23', '24-29', '30-35', '36-41', '42-47', '48+']
 
-    # Используем pd.cut для разбиения на интервалы
-    categories = pd.cut(age_column, bins=bins, labels=labels, right=True, include_lowest=True)
+def load_dashboard_template(templates_folder: str) -> pd.DataFrame:
+    programs_file = 'programs.xlsx'
+    template_file = 'template.xlsx'
+    df_online_programs = pd.read_excel(templates_folder + programs_file)
+    df_online_programs = df_online_programs[df_online_programs['format'] != 'offline'].reset_index(drop=True)
+    df_dashboard_template = pd.read_excel(templates_folder + template_file)
+    return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
 
-    # Считаем количество в каждом диапазоне
-    counts = categories.value_counts().sort_index()
-
-    return np.array2string(counts.values, separator=';')[1:-1]
-
-def years_ago(years, from_date=None):
-    if from_date is None:
-        from_date = datetime.now()
-    try:
-        return from_date.replace(year=from_date.year - years)
-    except ValueError:
-        # Must be 2/29!
-        assert from_date.month == 2 and from_date.day == 29 # can be removed
-        return from_date.replace(month=2, day=28,
-                                 year=from_date.year-years)
-
-def num_years(begin, end=None):
-    if end is None:
-        end = datetime.now()
-    if pd.isna(begin):
-        begin = datetime.now()
-    years = end.year - begin.year
-    if begin > years_ago(years, end):
-        return years - 1
-    return years
-
-def insert_values(df_dashboard, df_values, col_join, col_values): # df_values should have 'values' column
-    for i, row in df_dashboard.iterrows():
-        if row[col_join] in df_values[col_join].values:
-            df_dashboard.loc[i, col_values] = df_values[df_values[col_join] == row[col_join]].values[0][1] # row[col_values]
-            #row[col_values] = df_values[(row[col_join], 'values')]
-        else:
-            df_dashboard.loc[i, col_values] = 0
-        # print(row)
-    # df_dashboard.loc[df_dashboard[col_join].isin(df_values[col_join]), col_values] = df_values.loc[df_values[col_join].isin(df_dashboard[col_join]), 'values'].values
-    # df_dashboard[col_values] = df_dashboard[col_values].fillna(0).astype(int)
-    return df_dashboard[col_values]
 
 def process_history_files():
 
@@ -192,7 +156,7 @@ def process_history_files():
     print('Исторические данные считаны')
     return df_pivot, df_leads_all_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev
 
-def process_foreign_programs(df, programs_names):
+def _process_foreign_programs(df, programs_names):
     try:
         df[master_foreign_col_programs_2] = df[master_foreign_col_programs_2].fillna('')
         is_online = df[master_foreign_col_programs_1].isin(programs_names)
@@ -212,38 +176,7 @@ def process_foreign_programs(df, programs_names):
         print('Problem with foreign programs file')
     return df
 
-def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m.%Y %H:%M:%S'):
-    df_temp = df.copy().dropna(subset=[col_date])
-    df_temp[col_date] = pd.to_datetime(df_temp[col_date], format=format)
-
-    # Вычисляем номер недели (можно также использовать понедельник недели как якорь)
-    df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').apply(lambda r: r.start_time) # немного магии - тут надо начинать с пн; df_temp['week_start'] = df_temp[col_date].dt.to_period('W-SUN').dt.start_time
-
-    # Группируем по программе и неделе
-    weekly_counts = df_temp.groupby([col_program, 'week_start']).size().reset_index(name=col_values)
-
-    # Получим все уникальные программы и все недели
-    all_programs = weekly_counts[col_program].unique()
-    if all_programs.size == 0:
-        weekly_counts.loc[0, 'week_start'] = datetime.now()
-
-    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=9, day=29, hour=0, minute=0, second=0),
-                            end=weekly_counts['week_start'].max(),
-                            freq='W-MON')  # каждую неделю по вторникам TODO: check различия MON & TUE
-
-    # Создаем полную сетку: программа × неделя
-    full_index = pd.MultiIndex.from_product([all_programs, all_weeks], names=[col_program, 'week_start'])
-    full_df = pd.DataFrame(index=full_index).reset_index()
-
-    # Объединяем с посчитанными заявками
-    merged = pd.merge(full_df, weekly_counts, how='left', on=[col_program, 'week_start'])
-    merged[col_values] = merged[col_values].fillna(0).astype(int)
-
-    # Группируем по программе и объединяем значения в строку через ';'
-    result = merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index(name=col_values)
-    return result.set_index(col_program, verify_integrity=True, drop=True).squeeze() #.to_dict(orient='index')
-
-def find_first_file(mask: str, default: str, folder: str = '') -> str:
+def _find_first_file(mask: str, default: str, folder: str = '') -> str:
     file_list = glob.glob(folder + mask)
     if len(file_list) > 0:
         if file_list[0].find('~') == -1:
@@ -253,7 +186,7 @@ def find_first_file(mask: str, default: str, folder: str = '') -> str:
     else:
         return folder + default
 
-def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
+def _preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
     df[col_programs_names].fillna(main_studyonline, inplace=True)
 
     namings_to_drop = ['тест тест', 'richkos test', '-дубль', 'тест тест-дубль', 'тест тесст-дубль' ] # приведены к нижнему регистру
@@ -267,9 +200,8 @@ def preprocess_bitrix_file(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-
-def process_current_files_legacy(debug=None):
+def process_from_current_files(debug=None):
+    '''Legacy function for processing data from current files - Bitrix, ASAV, AISPK exports to xsl(x)'''
 
     if debug is None:
         import warnings
@@ -288,20 +220,20 @@ def process_current_files_legacy(debug=None):
 
     # dashboard_file = 'dashboard.xlsx'
 
-    bitrix_file = find_first_file('*DEAL*.xls*', 'bitrix.xls', relative_folder)
+    bitrix_file = _find_first_file('*DEAL*.xls*', 'bitrix.xls', relative_folder)
 
     bitrix_file_before_april = 'bitrix_2025-10-01_2026-03-31.xlsx' # TODO объединить за счет получения данных с помощью API
-    portal_file = find_first_file('*порт*.xls*', 'portal.xls', relative_folder)
+    portal_file = _find_first_file('*порт*.xls*', 'portal.xls', relative_folder)
 
-    master_file = find_first_file('*асав*.xls*', 'asav.xlsx', relative_folder)
-    master_file_foreign = find_first_file('*инос*.xls*', 'asav_foreign.xlsx', relative_folder)
+    master_file = _find_first_file('*асав*.xls*', 'asav.xlsx', relative_folder)
+    master_file_foreign = _find_first_file('*инос*.xls*', 'asav_foreign.xlsx', relative_folder)
 
-    master_file_early_invitation = find_first_file('*РП*.xls*', 'asav_early_invitation.xlsx', relative_folder)
+    master_file_early_invitation = _find_first_file('*РП*.xls*', 'asav_early_invitation.xlsx', relative_folder)
     # master_file_sheet_name = 'только онлайн'
 
-    bachelor_app_file = find_first_file('*заявл*.xls*', 'bac_applications.xlsx', relative_folder)
-    bachelor_con_file = find_first_file('*дог*.xls*', 'bac_contracts.xlsx', relative_folder)
-    bachelor_enr_file = find_first_file('*зач*.xls*', 'bac_enrolled.xlsx', relative_folder)
+    bachelor_app_file = _find_first_file('*заявл*.xls*', 'bac_applications.xlsx', relative_folder)
+    bachelor_con_file = _find_first_file('*дог*.xls*', 'bac_contracts.xlsx', relative_folder)
+    bachelor_enr_file = _find_first_file('*зач*.xls*', 'bac_enrolled.xlsx', relative_folder)
 
     enr_file = relative_folder + 'зачисленные.xlsx' #find_first_file('*зач*.xls*', 'bac_enrolled.xlsx', relative_folder)
 
@@ -346,7 +278,7 @@ def process_current_files_legacy(debug=None):
         try: # Число лидов со studyonline с 1 апреля по настоящее время. Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса в html-формате')
             df_bitrix_after_april = pd.read_html(bitrix_file, header=0)[0]
-            df_bitrix_after_april = preprocess_bitrix_file(df_bitrix_after_april)
+            df_bitrix_after_april = _preprocess_bitrix_file(df_bitrix_after_april)
             df_bitrix_after_april[bitrix_col_date] = pd.to_datetime(df_bitrix_after_april[bitrix_col_date], dayfirst=True, errors='raise') # , format='%d.%m.%Y  %H:%M'
 
             df_bitrix_after_april = df_bitrix_after_april[df_bitrix_after_april[bitrix_col_date] >= DATE_01_04_2026] # надо отфильтровать с началом от 1.04, иначе может быть дублирование лидов с апреля и далее
@@ -381,7 +313,7 @@ def process_current_files_legacy(debug=None):
         try:# Число лидов из битрикс до 1 апреля (не включительно). Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса до 31.03')
             df_bitrix_before_april = pd.read_excel(templates_folder + bitrix_file_before_april) # , usecols=columns_from_bitrix_file_2026= H:Q
-            df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
+            df_bitrix_before_april = _preprocess_bitrix_file(df_bitrix_before_april)
             print('Данные от Битрикса до 31.03 считаны')
             # pd.read_excel(bitrix_file)
         except:
@@ -390,7 +322,7 @@ def process_current_files_legacy(debug=None):
         try: # Число лидов со studyonline с 1 октября по настоящее время. Почему-то это html таблица, хотя файл xls
             print('Начинаем считывать данные от Битрикса в html-формате')
             df_bitrix_before_april = pd.read_html(bitrix_file, header=0)[0]
-            df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
+            df_bitrix_before_april = _preprocess_bitrix_file(df_bitrix_before_april)
             print('Данные от Битрикса считаны')
             # pd.read_excel(bitrix_file)
         except Exception as e:
@@ -398,7 +330,7 @@ def process_current_files_legacy(debug=None):
             try:# Число лидов со studyonline с 1 октября по настоящее время. На случай, если html чтение не сработало
                 print('Начинаем считывать данные от Битрикса в xls-формате')
                 df_bitrix_before_april = pd.read_excel(bitrix_file, header=0)
-                df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
+                df_bitrix_before_april = _preprocess_bitrix_file(df_bitrix_before_april)
                 print('Данные от Битрикса считаны')
                 # pd.read_excel(bitrix_file)
             except Exception as e:
@@ -406,7 +338,7 @@ def process_current_files_legacy(debug=None):
                 try:# Число лидов со studyonline с 1 октября по настоящее время. На случай, если html чтение не сработало
                     print('Начинаем считывать данные от Битрикса в xlsx-формате')
                     df_bitrix_before_april = pd.read_excel(bitrix_file + 'x', header=0)
-                    df_bitrix_before_april = preprocess_bitrix_file(df_bitrix_before_april)
+                    df_bitrix_before_april = _preprocess_bitrix_file(df_bitrix_before_april)
                     print('Данные от Битрикса считаны')
                     # pd.read_excel(bitrix_file)
                 except Exception as e:
@@ -489,7 +421,7 @@ def process_current_files_legacy(debug=None):
         print('Ошибка в обработке АСАВ по иностранцам, возможно нет выгрузки из АСАВ или она называется не ' + master_file_foreign)
         df_master_foreign = pd.DataFrame(columns=[master_col_programs, master_foreign_col_contracts, master_foreign_col_payments, master_foreign_col_enrollments])
 
-    df_master_foreign = process_foreign_programs(df_master_foreign, df_online_programs[col_program])
+    df_master_foreign = _process_foreign_programs(df_master_foreign, df_online_programs[col_program])
 
     try:
         master_applications_foreign = df_master_foreign.groupby(master_foreign_col_programs_1)[master_foreign_col_programs_1].count()
@@ -760,51 +692,3 @@ def process_current_files_legacy(debug=None):
     return df, df_history
 
 
-def _load_dashboard_template(templates_folder: str) -> pd.DataFrame:
-    programs_file = 'programs.xlsx'
-    template_file = 'template.xlsx'
-    df_online_programs = pd.read_excel(templates_folder + programs_file)
-    df_online_programs = df_online_programs[df_online_programs['format'] != 'offline'].reset_index(drop=True)
-    df_dashboard_template = pd.read_excel(templates_folder + template_file)
-    return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
-
-
-# def _load_bitrix_entity_type_ids(entity_type_ids: Mapping[str, int] | None) -> Mapping[str, int]:
-#     if entity_type_ids is not None:
-#         return entity_type_ids
-#     try:
-#         from my_secrets import secrets
-#     except ImportError as error:
-#         raise ValueError('Set BITRIX_ENTITY_TYPE_IDS in my_secrets.py or pass entity_type_ids explicitly') from error
-#     loaded_entity_type_ids = secrets.get('BITRIX_ENTITY_TYPE_IDS')
-#     if not isinstance(loaded_entity_type_ids, Mapping):
-#         raise ValueError('Set secrets['BITRIX_ENTITY_TYPE_IDS'] with Bitrix entity type IDs')
-#     return loaded_entity_type_ids
-
-
-def process_current_files(debug=None, legacy=None, entity_type_ids: Mapping[str, int] | None = None):
-    if legacy:
-        return process_current_files_legacy(debug)
-
-    from bitrix import BITRIX_BATCH_LIMIT, BITRIX_WEBHOOK_URL, create_bitrix_client
-    from bitrix_pipeline import process_current_files_from_bitrix # create_bitrix_admissions_sources
-    from contracts import BITRIX_ADMISSIONS_ENTITIES
-
-    templates_folder = 'templates/'
-    dashboard_template = _load_dashboard_template(templates_folder)
-    # bitrix_entity_type_ids = _load_bitrix_entity_type_ids(entity_type_ids)
-    client = create_bitrix_client(BITRIX_WEBHOOK_URL)
-    sources = BITRIX_ADMISSIONS_ENTITIES # create_bitrix_admissions_sources() # bitrix_entity_type_ids
-    if not debug:
-        history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev = process_history_files() # TODO df_pivot, df_leads_all_prev, df_leads_after_april_prev, df_applications_prev, df_contracts_prev
-    else:
-        history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev = [pd.DataFrame() for _ in range(5)]
-    return process_current_files_from_bitrix(
-        client=client,
-        sources=sources,
-        dashboard_template=dashboard_template,
-        as_of=datetime.now(),
-        batch_size=BITRIX_BATCH_LIMIT,
-        history_dataframes=[history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev],
-        debug=debug
-    )

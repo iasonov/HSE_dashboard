@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 
-from contracts import BitrixEntity
+from bitrix_contracts import BitrixEntity
 
 import pandas as pd
 
@@ -209,35 +209,6 @@ def create_bitrix_client(webhook_url: str) -> BitrixRestClient:
     )
 
 
-# def get_deal_category_id(category_name: str, client: BitrixRestClient) -> int:
-#     '''Return Bitrix deal category ID by its visible funnel name.'''
-
-#     try:
-#         response = client.call('crm.category.list', {'entityTypeId': BITRIX_DEAL_ENTITY_TYPE_ID})
-#         category_result = response.get('result', [])
-#         categories = category_result.get('categories', []) if isinstance(category_result, Mapping) else category_result
-#     except BitrixAPIError:
-#         response = client.call(
-#             'crm.dealcategory.list',
-#             {'order': {'SORT': 'ASC'}, 'select': ['ID', 'NAME', 'SORT']},
-#         )
-#         categories = response.get('result', [])
-
-#     for category in categories:
-#         category_title = str(category.get('name') or category.get('NAME') or '').strip().casefold()
-#         if category_title == category_name.strip().casefold():
-#             return int(category.get('id') or category.get('ID'))
-#     raise ValueError(f'Deal funnel {category_name!r} was not found')
-
-# Get all lists with 
-# base_params: dict[str, Any] = {
-#     'IBLOCK_TYPE_ID' : 'lists',
-# }
-# return _list_dataframe(client, 'lists.get', 'items', base_params, batch_size)
-# 
-# [{key: d[key]} for d in first_result for key in ['ID', 'CODE', 'API_CODE', 'NAME']]: 
-# [{'ID': '43'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Сферы интересов'}, {'ID': '39'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Категория пользователя'}, {'ID': '38'}, {'CODE': None}, {'API_CODE': None}, {'NAME': 'Совокупность конкурсных групп'}, {'ID': '35'}, {'CODE': 'rannee priglashenie'}, {'API_CODE': 'ranneepriglashenie'}, {'NAME': 'Раннее приглашение'}, {'ID': '26'}, {'CODE': 'formy oprosa na portale'}, {'API_CODE': 'formyoprosanaportale'}, {'NAME': 'Формы опроса на портале'}, {'ID': '24'}, {'CODE': 'forma obucheniya'}, {'API_CODE': 'formaobucheniya'}, {'NAME': 'Форма обучения'}, {'ID': '23'}, {'CODE': 'kampusy'}, {'API_CODE': 'kampusy'}, {'NAME': 'Кампусы'}, {'ID': '22'}, {'CODE': 'fakultety'}, {'API_CODE': 'fakultety'}, {'NAME': 'Факультеты'}, {'ID': '21'}, {'CODE': 'obrazovatelnye programmy'}, {'API_CODE': 'obrazovatelnyeprogrammy'}, {'NAME': 'Образовательные программы'}, {'ID': '20'}, {'CODE': 'urovni obrazovaniya'}, {'API_CODE': 'urovniobrazovaniya'}, {'NAME': 'Уровни образования'}, {'ID': '18'}, {'CODE': 'strany'}, {'API_CODE': 'strany'}, {'NAME': 'Страны'}, {'ID': '17'}, {'CODE': 'goroda'}, {'API_CODE': 'goroda'}, {'NAME': 'Города'}, {'ID': '16'}, {'CODE': 'nabor na uchebnyj god'}, {'API_CODE': 'nabornauchebnyjgod'}, {'NAME': 'Набор на учебный год'}, {'ID': '5'}, {'CODE': 'clients_s1'}, {'API_CODE': None}, {'NAME': 'Клиенты'}]
-
 def _list_dataframe(
     client: BitrixRestClient,
     method: str,
@@ -273,80 +244,6 @@ def _list_dataframe(
     return pd.DataFrame(rows)
 
 
-# def collect_deals_dataframe(
-#     client: BitrixRestClient,
-#     category_name: str,
-#     category_id: int,
-#     select: Sequence[str],
-#     extra_filter: Mapping[str, Any] | None,
-#     batch_size: int,
-# ) -> pd.DataFrame:
-#     '''Collect all deals from a Bitrix CRM funnel into one DataFrame.'''
-
-#     if category_id is None:
-#         raise('No category ID') # get_deal_category_id(category_name, client)
-
-#     deal_filter: dict[str, Any] = {'CATEGORY_ID': category_id}
-#     if extra_filter:
-#         deal_filter.update(extra_filter)
-#     base_params: dict[str, Any] = {
-#         'select': list(select),
-#         'filter': deal_filter,
-#         'order': {'ID': 'ASC'},
-#     }
-#     return _list_dataframe(client, 'crm.deal.list', 'result', base_params, batch_size)
-
-
-# # TODO unused? only for testing?
-# def collect_360_deals_dataframe(
-#     client: BitrixRestClient | None = None,
-#     category_name: str = 'Поступление 360',
-#     category_id: int | None = None,
-#     select: Sequence[str] = DEFAULT_DEAL_SELECT,
-#     extra_filter: Mapping[str, Any] | None = None,
-#     batch_size: int = BITRIX_BATCH_LIMIT,
-# ) -> pd.DataFrame:
-#     '''Compatibility helper for the admissions funnel deal export.'''
-
-#     rest = client if client is not None else create_bitrix_client(BITRIX_WEBHOOK_URL)
-#     return collect_deals_dataframe(rest, category_name, category_id, select, extra_filter, batch_size)
-
-
-# # TODO move if to BitrixEntity setting
-# def collect_crm_items_dataframe(
-#     client: BitrixRestClient,
-#     entity_type_id: int,
-#     select: Sequence[str],
-#     extra_filter: Mapping[str, Any],
-#     batch_size: int,
-#     debug: bool = False
-# ) -> pd.DataFrame:
-#     '''Collect Bitrix dynamic CRM items by entity type ID.'''
-
-#     if entity_type_id in [1, 2, 3, 4, 5, 31, 7, 8, 36, 39]:
-#         if debug:
-#             return pd.DataFrame() # for debug
-#         rest_request = 'crm.item.list'
-#         base_params: dict[str, Any] = {
-#             'entityTypeId': entity_type_id,
-#             'select': ['*'], # TODO list(select), now for the case of problem
-#             'filter': dict(extra_filter),
-#             'order': {'id': 'ASC'},
-#         }
-        
-#     else: 
-#         rest_request = 'lists.element.get'
-#         base_params: dict[str, Any] = {
-#             'IBLOCK_TYPE_ID' : 'lists',
-#             'IBLOCK_ID': entity_type_id,
-#             # 'SELECT' : ['*'],
-#             # 'FILTER' : dict(extra_filter), 
-#             'ELEMENT_ORDER': {'id': 'ASC'},
-#         }
-
-        
-#     return _list_dataframe(client, rest_request, 'items', base_params, batch_size, debug)
-# # TODO make list+get (faster version) https://habr.com/ru/articles/537694/
 
 def collect_bitrix_item_sources(
     client: BitrixRestClient,
