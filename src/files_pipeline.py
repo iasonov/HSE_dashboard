@@ -17,10 +17,10 @@ def load_dashboard_template(templates_folder: str) -> pd.DataFrame:
     return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
 
 
-def process_history_files():
+def process_history_files(templates_folder: str = 'templates/'):
 
     now = datetime.now()
-    templates_folder = 'templates/'
+
     master_leads_file_2023        = 'bitrix_2023-04-01_2023-09-15.csv'
     master_leads_file_2024        = 'bitrix_2024-04-01_2024-09-15.csv'
     master_leads_file_2025        = 'bitrix_2025-04-01_2025-09-15.csv'

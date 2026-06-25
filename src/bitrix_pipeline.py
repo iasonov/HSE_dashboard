@@ -268,57 +268,52 @@ def _apply_bitrix_metrics_to_dashboard(
     result.fillna(0, inplace=True)
     return result
 
-def _update_history_data(
+def _apply_history_data_to_dashboard(
+    dashboard: pd.DataFrame,
     data: BitrixRawTables,
     history_data: pd.DataFrame,
     leads_prev: pd.DataFrame,
     leads_after_april_prev: pd.DataFrame,
     applications_prev: pd.DataFrame,
     contracts_prev: pd.DataFrame,
-) -> tuple[BitrixRawTables, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     '''Обновляет исторические метрики и подготавливает строку main_studyonline для дашборда.'''
 
-    # # 1. Список программ (аналог df_online_master_programs[col_program])
-    # # В нормализованных данных educational_programs столбец с названиями уже переименован в col_program_bitrix
-    # prog_col = col_program_bitrix if col_program_bitrix in data.educational_programs.columns else 'NAME'
-    # masters_list = data.educational_programs[prog_col].unique()
-
-    # 2. Уникальные заявки 2026 (аналог master_2026_no_duplicates + bachelor_2026_no_duplicates)
-    # В BitrixRawTables нет ASAV-идентификаторов и разделения на уровни обучения.
-    # Считаем заявки из Bitrix для программ из списка. Для точного учёта уникальности
-    # потребуется расширение экспорта (например, добавление ufDealContact или ID заявки).
-    # apps_2026 = data.applications[data.applications['program'].isin(masters_list)]
-
     # TODO check
-
     history_data.loc[2026, 'applications_unique'] = data.applications['contactId'].drop_duplicates().count()
 
     history_data.loc[2026, 'early_invitations_unique'] = 1658 # TODO исправить на расчет
 
 
-    # 4. Форматирование лидов прошлых лет для соответствия структуре insert_values
-    leads_prev_df = pd.DataFrame({col_program_bitrix: leads_prev.index, 'values': leads_prev.values})
-    leads_after_april_prev_df = pd.DataFrame({col_program_bitrix: leads_after_april_prev.index, 'values': leads_after_april_prev.values})
+    # leads_prev_df = pd.Series(leads_prev.values, index=# ({col_program_bitrix: leads_prev.index, 'values': leads_prev.values})
+    # leads_after_april_prev_df = pd.DataFrame({col_program_bitrix: leads_after_april_prev.index, 'values': leads_after_april_prev.values})
 
+    dashboard[col_leads_prev] = dashboard[col_program_bitrix].map(leads_prev).fillna(0).astype(int)
+    dashboard[col_leads_after_april_prev] = dashboard[col_program_bitrix].map(leads_after_april_prev).fillna(0).astype(int)
+
+    # result[col_leads] = result[col_program_bitrix].map(leads_counts).fillna(0).astype(int)
     try:
-        main_leads_after_april_prev = leads_after_april_prev_df.loc[
-            leads_after_april_prev_df[col_program_bitrix] == main_studyonline, 'values'
-        ].values[0]
-    except (IndexError, KeyError):
+        main_leads_after_april_prev = leads_after_april_prev[main_studyonline]
+    except:
         main_leads_after_april_prev = 0
 
+    dashboard.loc[dashboard[col_program_bitrix] == main_studyonline, col_leads_after_april_prev] = main_leads_after_april_prev
+
     try:
-        main_leads_prev = leads_prev_df.loc[
-            leads_prev_df[col_program_bitrix] == main_studyonline, 'values'
-        ].values[0]
-    except (IndexError, KeyError):
+        main_leads_prev = leads_prev[main_studyonline]
+    except:
         main_leads_prev = 0
 
-    # 5. Форматирование заявок и договоров прошлых лет
-    applications_prev_df = pd.DataFrame({col_program: applications_prev.index, 'values': applications_prev.values})
-    contracts_prev_df = pd.DataFrame({col_program: contracts_prev.index, 'values': contracts_prev.values})
+    dashboard.loc[dashboard[col_program_bitrix] == main_studyonline, col_leads_prev] = main_leads_prev
 
-    # # 6. Создание строки для main_studyonline в дашборде (аналог df_main_dashboard)
+
+    dashboard[col_applications_prev] = dashboard[col_program].map(applications_prev).fillna(0).astype(int) # TODO check map
+    dashboard[col_contracts_prev] = dashboard[col_program].map(contracts_prev).fillna(0).astype(int)
+
+    # applications_prev_df = pd.DataFrame({col_program: applications_prev.index, 'values': applications_prev.values})
+    # contracts_prev_df = pd.DataFrame({col_program: contracts_prev.index, 'values': contracts_prev.values})
+
+    # # # 6. Создание строки для main_studyonline в дашборде (аналог df_main_dashboard)
     # main_dashboard_row = pd.DataFrame([{
     #     col_program: main_studyonline,
     #     col_program_bitrix: main_studyonline,
@@ -328,13 +323,13 @@ def _update_history_data(
 
     # Сохраняем рассчитанные метрики в history_data для последующей вставки в дашборд
     # (slots=True в BitrixRawTables не позволяет хранить их в data напрямую)
-    history_data.loc[2026, col_leads_prev] = main_leads_prev
-    history_data.loc[2026, col_leads_after_april_prev] = main_leads_after_april_prev
-    # history_data['main_dashboard_row'] = main_dashboard_row
-    history_data[col_applications_prev] = applications_prev_df
-    history_data[col_contracts_prev] = contracts_prev_df
+    # history_data.loc[2026, col_leads_prev] = main_leads_prev
+    # history_data.loc[2026, col_leads_after_april_prev] = main_leads_after_april_prev
+    # # history_data['main_dashboard_row'] = main_dashboard_row
+    # history_data[col_applications_prev] = applications_prev_df
+    # history_data[col_contracts_prev] = contracts_prev_df
 
-    return data, history_data
+    return dashboard, history_data
 
 def process_from_bitrix(debug: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     '''Build current dashboard data from Bitrix tables only.'''
@@ -355,7 +350,7 @@ def process_from_bitrix(debug: bool = False) -> tuple[pd.DataFrame, pd.DataFrame
     data = _normalize_raw_data(raw_tables)
     # admissions_data = normalize_bitrix_admissions_data(raw_tables)
     dashboard = _apply_bitrix_metrics_to_dashboard(dashboard_template, data, datetime.now())
-    data, history_data = _update_history_data(data, history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev)
+    dashboard, history_data = _apply_history_data_to_dashboard(dashboard, data, history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev)
     dashboard = _finalize_dashboard_calculations(dashboard)
     dashboard = dashboard.drop(columns=[column for column in TECHNICAL_DASHBOARD_COLUMNS if column in dashboard.columns])
 

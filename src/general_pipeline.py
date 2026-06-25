@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from files_pipeline import process_from_current_files
-from bitrix_pipeline import process_from_bitrix
 
 def categorize_ages(age_column):
     # Определяем диапазоны
@@ -86,6 +84,8 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
 
 def calculate_dashboard(debug:bool = None, legacy:bool = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     if legacy:
+        from files_pipeline import process_from_current_files
         return process_from_current_files(debug)
     else:
+        from bitrix_pipeline import process_from_bitrix
         return process_from_bitrix(debug)
