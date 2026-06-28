@@ -78,7 +78,7 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
 
     # Группируем по программе и объединяем значения в строку через ';'
     result = merged.groupby(col_program)[col_values].apply(lambda x: ';'.join(map(str, x))).reset_index(name=col_values)
-    return result.set_index(col_program, verify_integrity=True, drop=True).squeeze() #.to_dict(orient='index')
+    return result.set_index(col_program, verify_integrity=True, drop=True)[col_values]
 
 
 

@@ -209,6 +209,9 @@ def _finalize_dashboard_calculations(dashboard: pd.DataFrame) -> pd.DataFrame:
 
     result.replace(np.inf, 0, inplace=True)
     result.fillna(0, inplace=True)
+
+    float_columns = result.select_dtypes('float64')
+    result[float_columns.columns] = float_columns.astype(int, errors='raise')
     return result
 
 
@@ -280,7 +283,19 @@ def _apply_history_data_to_dashboard(
     '''Обновляет исторические метрики и подготавливает строку main_studyonline для дашборда.'''
 
     # TODO check
-    history_data.loc[2026, 'applications_unique'] = data.applications['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_unique'] = data.applications['contactId'].drop_duplicates().count() # TODO check
+    online_masters_ids = dashboard[dashboard['level'] == 'master'][col_program_bitrix]
+    online_bachelors_ids = dashboard[dashboard['level'] == 'bachelor'][col_program_bitrix]
+
+    history_data.loc[2026, 'applications_masters_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_masters_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_bachelors_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_bachelors_ids)]['contactId'].drop_duplicates().count()
+
+    online_no_rossokhins_ids = dashboard[~dashboard[col_program].str.startswith('Психоанализ и')][col_program_bitrix]
+    history_data.loc[2026, 'applications_no_rossokhins_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
+
+
+    # list(set(online_masters_ids) - set([219, 220])) # две психологии Россохина
+
 
     history_data.loc[2026, 'early_invitations_unique'] = 1658 # TODO исправить на расчет
 

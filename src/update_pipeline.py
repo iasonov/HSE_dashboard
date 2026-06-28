@@ -50,6 +50,9 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('S55', str(history_data.loc[2024, 'contracts'])),
         ('S57', str(history_data.loc[2023, 'contracts'])),
         ('O52', str(history_data.loc[2026, 'applications_unique'])),
+        ('P52', str(history_data.loc[2026, 'applications_no_rossokhins_unique'])),
+        ('Q52', str(history_data.loc[2026, 'applications_bachelors_unique'])),
+        ('R52', str(history_data.loc[2026, 'applications_masters_unique'])),
         ('O54', str(history_data.loc[2025, 'applications_unique'])),
         ('O56', str(history_data.loc[2024, 'applications_unique'])),
         ('O58', str(history_data.loc[2023, 'applications_unique'])),
@@ -76,17 +79,19 @@ def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, hist
     str_time = datetime.now().strftime('%H:%M')
     str_date = datetime.now().strftime('%d.%m')
 
-    if update_delta:
-        prev_leads, prev_applications = _read_previous_delta_values(dashboard, prev_file)
-        aggregated_data[col_leads_delta] = aggregated_data[col_leads] - prev_leads
-        aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications
-        aggregated_data[[col_leads, col_applications]].to_csv(prev_file, index=False)
-        print('Lead and application deltas updated')
-    else:
-        aggregated_data[col_leads_delta] = np.array(dashboard.get('L2:L49', value_render_option=ValueRenderOption.unformatted))[:, 0]
-        aggregated_data[col_applications_delta] = np.array(dashboard.get('P2:P49', value_render_option=ValueRenderOption.unformatted))[:, 0]
-        print('Weekly delta values reused from the sheet')
+    # TODO make if for legacy mode
+    # if update_delta:
+    #     prev_leads, prev_applications = _read_previous_delta_values(dashboard, prev_file)
+    #     aggregated_data[col_leads_delta] = aggregated_data[col_leads] - prev_leads
+    #     aggregated_data[col_applications_delta] = aggregated_data[col_applications] - prev_applications
+    #     aggregated_data[[col_leads, col_applications]].to_csv(prev_file, index=False)
+    #     print('Lead and application deltas updated')
+    # else:
+    #     aggregated_data[col_leads_delta] = np.array(dashboard.get('L2:L49', value_render_option=ValueRenderOption.unformatted))[:, 0]
+    #     aggregated_data[col_applications_delta] = np.array(dashboard.get('P2:P49', value_render_option=ValueRenderOption.unformatted))[:, 0]
+    #     print('Weekly delta values reused from the sheet')
 
+    aggregated_data = aggregated_data.fillna("")
     dashboard.update([aggregated_data.columns.values.tolist()] + aggregated_data.values.tolist())
     print('Dashboard data written')
 
