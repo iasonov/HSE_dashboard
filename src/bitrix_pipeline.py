@@ -233,7 +233,7 @@ def _apply_bitrix_metrics_to_dashboard(
     main_leads_after_april = admissions_data.crm_deals[(admissions_data.crm_deals[col_program_bitrix] == main_studyonline) & (admissions_data.crm_deals[leads_dates] >= DATE_01_04_2026)][col_program_bitrix].count()
 
     main_leads_counts = pd.DataFrame(columns=result.columns, data=[{col_leads: main_leads, col_leads_after_april: main_leads_after_april, col_program_bitrix: main_studyonline, col_program: main_studyonline}])
-    result = pd.concat([main_leads_counts, result])
+    result = pd.concat([main_leads_counts, result], ignore_index=True)
 
     leads_counts = admissions_data.crm_deals.groupby(col_program_bitrix)[leads_dates].size()
     result[col_leads] = result[col_program_bitrix].map(leads_counts).fillna(0).astype(int)
@@ -252,18 +252,24 @@ def _apply_bitrix_metrics_to_dashboard(
     applications_count = admissions_data.applications.groupby(col_program_bitrix)[applications_dates].size()
     result[col_applications] = result[col_program_bitrix].map(applications_count).fillna(0).astype(int)
 
-    contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
+    applications_delta = admissions_data.applications[admissions_data.applications[applications_dates] >= datetime.now() - timedelta(days=3, hours=12)].groupby(col_program_bitrix)[applications_dates].size()
+    result[col_applications_delta] = result[col_program_bitrix].map(applications_delta).fillna(0).astype(int)
+
+    contracts_count = admissions_data.applications[admissions_data.applications['ufDealNomerDogovora'].notna()].groupby(col_program_bitrix)['ufDealNomerDogovora'].size()
     result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
 
-    # TODO оплаты, зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
+    payments_count = admissions_data.applications[admissions_data.applications['ufDealDogovorOplachen'] == 'Y'].groupby(col_program_bitrix)['ufDealDogovorOplachen'].size()
+    result[col_payments] = result[col_program_bitrix].map(payments_count).fillna(0).astype(int)
 
-    leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates, 'count')
+    # TODO зачисление, иностранцы, исторические выгрузки, проверки всех полей и сверка с выгрузками; возраста, МЖ, даты оплат, бэклог
+
+    leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates)
     result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna('').astype(str)
 
-    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, 'count') # , "%Y-%m-%d"
+    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # , "%Y-%m-%d"
     result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna("").astype(str)
 
-    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
+    contracts_by_week = pd.Series() # TODO no contracts_dates, unfortunatly process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
     result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna("").astype(str)
 
 
@@ -353,7 +359,6 @@ def process_from_bitrix(debug: bool = False) -> tuple[pd.DataFrame, pd.DataFrame
 
     templates_folder = 'templates/'
     dashboard_template = load_dashboard_template(templates_folder)
-    # bitrix_entity_type_ids = _load_bitrix_entity_type_ids(entity_type_ids)
     client = create_bitrix_client(BITRIX_WEBHOOK_URL)
     sources = BITRIX_ADMISSIONS_ENTITIES # create_bitrix_admissions_sources() # bitrix_entity_type_ids
     if not debug:
@@ -363,12 +368,11 @@ def process_from_bitrix(debug: bool = False) -> tuple[pd.DataFrame, pd.DataFrame
 
     raw_tables = _collect_bitrix_raw_tables(client, sources, BITRIX_BATCH_LIMIT, debug)
     data = _normalize_raw_data(raw_tables)
-    # admissions_data = normalize_bitrix_admissions_data(raw_tables)
     dashboard = _apply_bitrix_metrics_to_dashboard(dashboard_template, data, datetime.now())
     dashboard, history_data = _apply_history_data_to_dashboard(dashboard, data, history_data, leads_prev, leads_after_april_prev, applications_prev, contracts_prev)
     dashboard = _finalize_dashboard_calculations(dashboard)
     dashboard = dashboard.drop(columns=[column for column in TECHNICAL_DASHBOARD_COLUMNS if column in dashboard.columns])
 
-    #TODO add history_data processing and general columns in dashboard
+    #TODO add general columns in dashboard
     return dashboard, history_data
 

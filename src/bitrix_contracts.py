@@ -175,7 +175,8 @@ BITRIX_APPLICATIONS = BitrixEntity(
        'ufDealSendingStatus', 'ufDealUinAsav', 'ufDealUinAispk',
        'ufDealPrioritetBudjetMesto', 'ufDealPrioritetKommercMesto',
        'ufDealPrioritetCelevoeMesto', 'ufDealDataRegistracii', 'ufDealCampus',
-       'ufDealFinancing', 'ufDealDataPodachiSoglasia',
+       'ufDealFinancing', #!!! TODO выделить бюджетные места
+       'ufDealDataPodachiSoglasia',
        'ufDealPredMestoObuchenia', 'ufDealDogovorPodpisan', 'ufDealChild',
        'ufDealRekomKZachislen', 'ufDealPrichinaProvala', 'ufCrm_1757147711922',
        'ufDealDopNabor', 'ufDealOsnovanieZachislenVibitiya',

@@ -49,7 +49,7 @@ def insert_values(df_dashboard, df_values, col_join, col_values): # df_values sh
     return df_dashboard[col_values]
 
 
-def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m.%Y %H:%M:%S'):
+def process_by_week(df, col_program, col_date, start_date=pd.Timestamp(year=2025, month=9, day=29, hour=0, minute=0, second=0), col_values='count', format='%d.%m.%Y %H:%M:%S'):
     df_temp = df.copy().dropna(subset=[col_date])
     df_temp[col_date] = pd.to_datetime(df_temp[col_date], format=format)
 
@@ -64,7 +64,7 @@ def process_by_week(df, col_program, col_date, col_values='count', format='%d.%m
     if all_programs.size == 0:
         weekly_counts.loc[0, 'week_start'] = datetime.now()
 
-    all_weeks = pd.date_range(start=pd.Timestamp(year=2025, month=9, day=29, hour=0, minute=0, second=0),
+    all_weeks = pd.date_range(start=start_date,
                             end=weekly_counts['week_start'].max(),
                             freq='W-MON')  # каждую неделю по вторникам TODO: check различия MON & TUE
 

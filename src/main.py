@@ -10,7 +10,7 @@ from general_pipeline import calculate_dashboard
 from update_pipeline import update_sheet
 
 
-def run_dashboard(count_delta:bool = False, update_dashboard:bool = False, legacy:bool = False, debug:bool = False) -> Path:
+def run_dashboard(count_delta:bool = True, update_dashboard:bool = True, legacy:bool = False, debug:bool = False) -> Path:
     '''Run the dashboard pipeline and return the exported workbook path.'''
     # legacy: True - ASAV & AIS PK, False - only Bitrix
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         update_dashboard = False
         legacy = True
         debug = False
-    else: #testing bitrix
+    else: #bitrix
         count_delta = True
         update_dashboard = True
         legacy = False
