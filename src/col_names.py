@@ -58,6 +58,7 @@ col_leads_prev = '''Прошлогоднее Кол-во заявок (studyonli
 col_applications = '''Регистрации в ЛК (РФ все приоритеты)'''
 col_applications_prev = '''Прошлогодние Регистрации в ЛК (РФ все приоритеты)'''
 col_applications_by_week = '''Регистрации в ЛК (РФ все приоритеты) по неделям'''
+col_applications_budget = '''Регистрации в ЛК Бюджет'''
 # col_applications_gosuslugi = 'Регистрации в ЛК из Госуслуг'
 col_contracts = '''Договоры (ПК) РФ'''
 col_contracts_prev =  '''Прошлогодние Договоры (ПК) РФ'''

@@ -255,7 +255,7 @@ def _apply_bitrix_metrics_to_dashboard(
     applications_delta = admissions_data.applications[admissions_data.applications[applications_dates] >= datetime.now() - timedelta(days=3, hours=12)].groupby(col_program_bitrix)[applications_dates].size()
     result[col_applications_delta] = result[col_program_bitrix].map(applications_delta).fillna(0).astype(int)
 
-    contracts_count = admissions_data.applications[admissions_data.applications['ufDealNomerDogovora'].notna()].groupby(col_program_bitrix)['ufDealNomerDogovora'].size()
+    contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
     result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
 
     payments_count = admissions_data.applications[admissions_data.applications['ufDealDogovorOplachen'] == 'Y'].groupby(col_program_bitrix)['ufDealDogovorOplachen'].size()
@@ -269,7 +269,7 @@ def _apply_bitrix_metrics_to_dashboard(
     applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # , "%Y-%m-%d"
     result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna("").astype(str)
 
-    contracts_by_week = pd.Series() # TODO no contracts_dates, unfortunatly process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, 'count')
+    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # pd.Series() # TODO no contracts_dates, unfortunatly 
     result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna("").astype(str)
 
 
