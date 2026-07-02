@@ -53,6 +53,7 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('P52', str(history_data.loc[2026, 'applications_no_rossokhins_unique'])),
         ('Q52', str(history_data.loc[2026, 'applications_bachelors_unique'])),
         ('R52', str(history_data.loc[2026, 'applications_masters_unique'])),
+        ('S52', str(history_data.loc[2026, 'applications_masters_no_rossokhins_unique'])),
         ('O54', str(history_data.loc[2025, 'applications_unique'])),
         ('O56', str(history_data.loc[2024, 'applications_unique'])),
         ('O58', str(history_data.loc[2023, 'applications_unique'])),

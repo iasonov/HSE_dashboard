@@ -96,6 +96,7 @@ def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
     # _require_columns(raw_tables.educational_programs, BITRIX_EDUCATIONAL_PROGRAMS)
 
     # TODO перенести все строковые константы в col_names.py
+
     raw_tables.crm_deals['ufDealEducationProgram']    = raw_tables.crm_deals['ufDealEducationProgram'].fillna(0).astype(int, errors='raise') # TODO repair, пустые - преимущественно, но не только разводящий лендинг, но и другие программы (см. вкладку Пустоты в ufDealProgram в файле 2026_06_18_..xlsx)
     raw_tables.portal_deals['ufDealEducationProgram'] = raw_tables.portal_deals['ufDealEducationProgram'].fillna(-1).astype(int, errors='raise') # TODO check -1 - не наша программа
     raw_tables.applications['ufDealEducationProgram'] = raw_tables.applications['ufDealEducationProgram'].fillna(-2).astype(int, errors='raise') # TODO repair - там и наши ленды, и не наши ленды, см. Пустоты в ufDealProgram_APP
@@ -116,6 +117,8 @@ def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
     raw_tables.portal_deals[leads_dates]        = pd.to_datetime(raw_tables.portal_deals['createdTime'], errors='raise').dt.tz_localize(None)
     raw_tables.applications[applications_dates] = pd.to_datetime(raw_tables.applications['createdTime'], errors='raise').dt.tz_localize(None)
     raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise').dt.tz_localize(None) # TODO check
+
+    raw_tables.applications['ufDealFinancing'] = raw_tables.applications['ufDealFinancing'].fillna(807).astype(int)
 
     return raw_tables
 
@@ -249,10 +252,13 @@ def _apply_bitrix_metrics_to_dashboard(
 
     result[col_leads_total] = result[col_leads] + result[col_leads_partners]
 
-    applications_count = admissions_data.applications.groupby(col_program_bitrix)[applications_dates].size()
+    applications_count = admissions_data.applications[admissions_data.applications['ufDealFinancing'] == 808].groupby(col_program_bitrix)[applications_dates].size()
     result[col_applications] = result[col_program_bitrix].map(applications_count).fillna(0).astype(int)
 
-    applications_delta = admissions_data.applications[admissions_data.applications[applications_dates] >= datetime.now() - timedelta(days=3, hours=12)].groupby(col_program_bitrix)[applications_dates].size()
+    applications_count_budget = admissions_data.applications[admissions_data.applications['ufDealFinancing'] == 807].groupby(col_program_bitrix)[applications_dates].size()
+    result[col_applications_budget] = result[col_program_bitrix].map(applications_count_budget).fillna(0).astype(int)
+
+    applications_delta = admissions_data.applications[(admissions_data.applications['ufDealFinancing'] == 808) & (admissions_data.applications[applications_dates] >= datetime.now() - timedelta(days=3, hours=12))].groupby(col_program_bitrix)[applications_dates].size()
     result[col_applications_delta] = result[col_program_bitrix].map(applications_delta).fillna(0).astype(int)
 
     contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
@@ -266,10 +272,10 @@ def _apply_bitrix_metrics_to_dashboard(
     leads_by_week = process_by_week(admissions_data.crm_deals, col_program_bitrix, leads_dates)
     result[col_leads_by_week] = result[col_program_bitrix].map(leads_by_week).fillna('').astype(str)
 
-    applications_by_week = process_by_week(admissions_data.applications, col_program_bitrix, applications_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # , "%Y-%m-%d"
+    applications_by_week = process_by_week(admissions_data.applications[admissions_data.applications['ufDealFinancing'] == 808], col_program_bitrix, applications_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # , "%Y-%m-%d"
     result[col_applications_by_week] = result[col_program_bitrix].map(applications_by_week).fillna("").astype(str)
 
-    contracts_by_week = process_by_week(admissions_data.applications, col_program_bitrix, contracts_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # pd.Series() # TODO no contracts_dates, unfortunatly 
+    contracts_by_week = process_by_week(admissions_data.applications[admissions_data.applications['ufDealFinancing'] == 808], col_program_bitrix, contracts_dates, pd.Timestamp(year=2026, month=6, day=15, hour=0, minute=0, second=0)) # pd.Series() # TODO no contracts_dates, unfortunatly 
     result[col_contracts_by_week] = result[col_program_bitrix].map(contracts_by_week).fillna("").astype(str)
 
 
@@ -289,16 +295,19 @@ def _apply_history_data_to_dashboard(
     '''Обновляет исторические метрики и подготавливает строку main_studyonline для дашборда.'''
 
     # TODO check
-    history_data.loc[2026, 'applications_unique'] = data.applications['contactId'].drop_duplicates().count() # TODO check
+    history_data.loc[2026, 'applications_unique'] = data.applications[data.applications['ufDealFinancing'] == 808]['contactId'].drop_duplicates().count() # TODO check
     online_masters_ids = dashboard[dashboard['level'] == 'master'][col_program_bitrix]
     online_bachelors_ids = dashboard[dashboard['level'] == 'bachelor'][col_program_bitrix]
 
-    history_data.loc[2026, 'applications_masters_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_masters_ids)]['contactId'].drop_duplicates().count()
-    history_data.loc[2026, 'applications_bachelors_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_bachelors_ids)]['contactId'].drop_duplicates().count()
+    applications_contract = data.applications[data.applications['ufDealFinancing'] == 808].copy()
+    history_data.loc[2026, 'applications_masters_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_masters_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_bachelors_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_bachelors_ids)]['contactId'].drop_duplicates().count()
 
     online_no_rossokhins_ids = dashboard[~dashboard[col_program].str.startswith('Психоанализ и')][col_program_bitrix]
-    history_data.loc[2026, 'applications_no_rossokhins_unique'] = data.applications[data.applications[col_program_bitrix].isin(online_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_no_rossokhins_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
 
+    online_masters_no_rossokhins_ids = dashboard[(~dashboard[col_program].str.startswith('Психоанализ и'))&(dashboard['level'] == 'master')][col_program_bitrix]
+    history_data.loc[2026, 'applications_masters_no_rossokhins_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_masters_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
 
     # list(set(online_masters_ids) - set([219, 220])) # две психологии Россохина
 
