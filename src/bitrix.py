@@ -256,7 +256,7 @@ def collect_bitrix_item_sources(
     tables: dict[str, pd.DataFrame] = {}
     for source in sources:
         base_params = source.request_base_params
-        base_params[source.select_name] = source.select # if not debug else ('*',) if source.name != 'educational_programs' else None
+        base_params[source.select_name] = source.select if not debug else ('*',) if source.name != 'educational_programs' else None
         base_params[source.filter_name] = source.extra_filter
         tables[source.name] = _list_dataframe(client, source.request_rest, 'items', base_params, batch_size, debug)
         if tables[source.name].empty:
