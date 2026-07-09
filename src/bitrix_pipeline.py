@@ -261,7 +261,7 @@ def _apply_bitrix_metrics_to_dashboard(
     applications_delta = admissions_data.applications[(admissions_data.applications['ufDealFinancing'] == 808) & (admissions_data.applications[applications_dates] >= datetime.now() - timedelta(days=3, hours=12))].groupby(col_program_bitrix)[applications_dates].size()
     result[col_applications_delta] = result[col_program_bitrix].map(applications_delta).fillna(0).astype(int)
 
-    contracts_count = admissions_data.applications[admissions_data.applications[contracts_dates].notna()].groupby(col_program_bitrix)[contracts_dates].size()
+    contracts_count = admissions_data.applications[admissions_data.applications['ufDealNomerDogovora'].notna()].groupby(col_program_bitrix)['ufDealNomerDogovora'].size()
     result[col_contracts] = result[col_program_bitrix].map(contracts_count).fillna(0).astype(int)
 
     payments_count = admissions_data.applications[admissions_data.applications['ufDealDogovorOplachen'] == 'Y'].groupby(col_program_bitrix)['ufDealDogovorOplachen'].size()
