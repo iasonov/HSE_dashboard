@@ -99,3 +99,59 @@ def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, hist
     dashboard.update_acell('B50', f'{str_time}, {str_date}.2026')
     if history_data is not None:
         _write_history_cells(dashboard, history_data)
+
+
+def update_vi_dates_sheet(vi_data: dict[str, pd.DataFrame]) -> None:
+    '''Выгружает таблицу с датами ВИ в Google Sheets "Даты ВИ 2026".
+
+    Для каждого предмета (ключа словаря) проверяет наличие вкладки:
+    если вкладка есть — обновляет данные, если нет — создаёт и записывает.
+
+    Args:
+        vi_data: словарь {название_предмета: DataFrame} от process_vi_dates_file
+    '''
+    print('Начинаем выгрузку дат ВИ в Google Sheets')
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    if sys.platform not in {'win32', 'darwin'}:
+        raise ValueError(f'Unsupported platform: {sys.platform}')
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(str(_credentials_path()), scope)
+    client = gspread.authorize(creds)
+
+    try:
+        sheet = client.open('Даты ВИ 2026')
+        print('Google таблица "Даты ВИ 2026" открыта')
+    except gspread.SpreadsheetNotFound:
+        sheet = client.create('Даты ВИ 2026')
+        print('Google таблица "Даты ВИ 2026" создана')
+        # Удаляем дефолтную вкладку
+        default_ws = sheet.get_worksheet(0)
+        if default_ws.title == 'Sheet1':
+            sheet.del_worksheet(default_ws)
+
+    existing_titles = {ws.title for ws in sheet.worksheets()}
+
+    for subject, df in vi_data.items():
+        # Название вкладки ограничено 100 символами
+        title = subject[:100]
+        values = [df.columns.tolist()] + df.fillna('').values.tolist()
+
+        if title in existing_titles:
+            worksheet = sheet.worksheet(title)
+            worksheet.clear()
+            n_rows = len(values)
+            n_cols = len(values[0]) if values else 0
+            if n_rows > 0 and n_cols > 0:
+                worksheet.resize(n_rows, n_cols)
+            print(f'Обновлена вкладка: {title}')
+        else:
+            n_rows = max(len(values), 1)
+            n_cols = max(len(values[0]), 1) if values else 1
+            worksheet = sheet.add_worksheet(title=title, rows=n_rows, cols=n_cols)
+            # TODO create delay
+            print(f'Создана вкладка: {title}')
+
+        worksheet.update(values)
+
+    print('Выгрузка дат ВИ завершена')

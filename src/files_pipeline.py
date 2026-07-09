@@ -703,3 +703,41 @@ def process_from_current_files(debug=None):
     return df, df_history
 
 
+def process_vi_dates_file(file_path: str = 'data/2026_07_09_АСАВ_выгрузка дат ВИ_обезличенный.xlsx') -> dict[str, pd.DataFrame]:
+    '''Обрабатывает файл выгрузки дат ВИ в словарь DataFrames по предметам.
+
+    Каждая вкладка (ключ словаря) соответствует одному уникальному "Предмет".
+    Внутри вкладки колонки — уникальные "Начало сдачи" по возрастанию,
+    под каждой колонкой — список "Код в ЕПГУ".
+
+    Args:
+        file_path: путь к файлу выгрузки дат ВИ
+
+    Returns:
+        Словарь {название_предмета: DataFrame}, где колонки DataFrame — даты начала сдачи,
+        а строки — коды ЕПГУ.
+    '''
+    print('Начинаем считывать данные дат ВИ')
+    df = pd.read_excel(file_path)
+    df = df.dropna(subset=[col_vi_subject, col_vi_start])
+    print(f'Данные дат ВИ считаны: {len(df)} записей')
+
+    result = {}
+    for subject, group in df.groupby(col_vi_subject):
+        grouped = group.groupby(col_vi_start)[col_vi_epgu].apply(
+            lambda x: [int(v) for v in x.dropna().tolist()]
+        )
+        grouped = grouped.sort_index()
+
+        max_len = max(len(v) for v in grouped.values) if len(grouped) > 0 else 0
+        data = {}
+        for date, codes in grouped.items():
+            padded = codes + [None] * (max_len - len(codes))
+            data[date.strftime('%d.%m.%Y %H:%M')] = padded
+
+        result[subject] = pd.DataFrame(data)
+
+    print(f'Обработано предметов: {len(result)}')
+    return result
+
+

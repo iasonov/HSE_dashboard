@@ -108,3 +108,8 @@ col_ages_bars = 'ages_bars'
 leads_dates = 'leads_dates'
 applications_dates = 'applications_dates'
 contracts_dates = 'contracts_dates'
+
+# ВИ (вступительные испытания) — выгрузка дат
+col_vi_subject = 'Предмет'
+col_vi_start   = 'Начало сдачи'
+col_vi_epgu    = 'Код в ЕПГУ'
