@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -101,14 +102,15 @@ def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, hist
         _write_history_cells(dashboard, history_data)
 
 
-def update_vi_dates_sheet(vi_data: dict[str, pd.DataFrame]) -> None:
+def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_dict: dict[str, str]) -> None:
     '''Выгружает таблицу с датами ВИ в Google Sheets "Даты ВИ 2026".
 
     Для каждого предмета (ключа словаря) проверяет наличие вкладки:
     если вкладка есть — обновляет данные, если нет — создаёт и записывает.
 
     Args:
-        vi_data: словарь {название_предмета: DataFrame} от process_vi_dates_file
+        exams_data: словарь {название_предмета: DataFrame} от process_exams_dates_file
+        online_exams_dict: словарь {название_предмета: название_онлайн_программы}
     '''
     print('Начинаем выгрузку дат ВИ в Google Sheets')
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -132,9 +134,9 @@ def update_vi_dates_sheet(vi_data: dict[str, pd.DataFrame]) -> None:
 
     existing_titles = {ws.title for ws in sheet.worksheets()}
 
-    for subject, df in vi_data.items():
+    for subject, df in exams_data.items():
         # Название вкладки ограничено 100 символами
-        title = subject[:100]
+        title = (online_exams_dict.get(subject, "NOT FOUND") + ': ' + subject.split(':')[0])[:100]
         values = [df.columns.tolist()] + df.fillna('').values.tolist()
 
         if title in existing_titles:
@@ -149,9 +151,10 @@ def update_vi_dates_sheet(vi_data: dict[str, pd.DataFrame]) -> None:
             n_rows = max(len(values), 1)
             n_cols = max(len(values[0]), 1) if values else 1
             worksheet = sheet.add_worksheet(title=title, rows=n_rows, cols=n_cols)
-            # TODO create delay
+            
             print(f'Создана вкладка: {title}')
-
+        time.sleep(0.5)
         worksheet.update(values)
+        print(f'Данные на вкладку "{title}" загружены')
 
     print('Выгрузка дат ВИ завершена')

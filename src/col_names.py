@@ -110,6 +110,6 @@ applications_dates = 'applications_dates'
 contracts_dates = 'contracts_dates'
 
 # ВИ (вступительные испытания) — выгрузка дат
-col_vi_subject = 'Предмет'
-col_vi_start   = 'Начало сдачи'
-col_vi_epgu    = 'Код в ЕПГУ'
+col_exams_subject = 'Предмет'
+col_exams_start   = 'Начало сдачи'
+col_exams_epgu    = 'Код в ЕПГУ'

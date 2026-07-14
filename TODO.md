@@ -1,10 +1,13 @@
 # 2026
 ## Текущая разработка
-[ ] Починить договоры
+[ ] Починить даты договоров
 [ ] Добавить загрузку РП из файла
 [ ] Сколько из регистраций в ЛК приходится на битрикс-лидов
 [ ] Сделать бины для осреднения по числу заявлений и договоров
 [ ] Документировать число оплат и контрактов по дням
+[ ] Портальные заявки
+[ ] Иностранцы
+[ ] Пол и возраст
 Поля нужные считываются, пока лимит в 10 запросов, чтобы не грузить систему.
 Что надо сделать:
 2) Сверить выгрузку с выгрузкой из АСАВ и Битрикс (старый расчет)
@@ -15,7 +18,6 @@
 ## Features
 [ ] deal stage histogram
 [ ] success of managers (conversions? leads?)
-[ ] get data from Bitrix by API
 [ ] append new programs and convert to csv
 [x] read early invitation from Katya
 [ ] group by manager
@@ -23,6 +25,7 @@
 [x] gender for each program (based on applications?)
 [x] age for each program (based on applications?)
 [x] archive data (leads, applications, contracts) for each program
+[x] get data from Bitrix by API
 --- delta for 1 weeks
 [ ] add yaml for texts https://habr.com/ru/articles/1035714/
 [x] add unique client's (applications column) for 2023-2025 years

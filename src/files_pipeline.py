@@ -703,7 +703,7 @@ def process_from_current_files(debug=None):
     return df, df_history
 
 
-def process_vi_dates_file(file_path: str = 'data/2026_07_09_АСАВ_выгрузка дат ВИ_обезличенный.xlsx') -> dict[str, pd.DataFrame]:
+def process_exams_dates_file(file_path: str = 'data/2026_07_13_АСАВ_выгрузка дат ВИ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
     '''Обрабатывает файл выгрузки дат ВИ в словарь DataFrames по предметам.
 
     Каждая вкладка (ключ словаря) соответствует одному уникальному "Предмет".
@@ -717,14 +717,20 @@ def process_vi_dates_file(file_path: str = 'data/2026_07_09_АСАВ_выгру�
         Словарь {название_предмета: DataFrame}, где колонки DataFrame — даты начала сдачи,
         а строки — коды ЕПГУ.
     '''
+    print('Начинаем считывать данные по онлайн-программам')
+    exams_dict = pd.read_csv(dict_path, sep=';').set_index(col_exams_subject).to_dict(orient='dict')['Программа']
+
     print('Начинаем считывать данные дат ВИ')
-    df = pd.read_excel(file_path)
-    df = df.dropna(subset=[col_vi_subject, col_vi_start])
+    df = pd.read_excel(file_path, usecols='B:S', skiprows=1)
+    df = df.dropna(subset=[col_exams_subject, col_exams_start])
+    df = df[df[col_exams_subject].isin(exams_dict.keys())]
+
+
     print(f'Данные дат ВИ считаны: {len(df)} записей')
 
     result = {}
-    for subject, group in df.groupby(col_vi_subject):
-        grouped = group.groupby(col_vi_start)[col_vi_epgu].apply(
+    for subject, group in df.groupby(col_exams_subject):
+        grouped = group.groupby(col_exams_start)[col_exams_epgu].apply(
             lambda x: [int(v) for v in x.dropna().tolist()]
         )
         grouped = grouped.sort_index()
@@ -738,6 +744,7 @@ def process_vi_dates_file(file_path: str = 'data/2026_07_09_АСАВ_выгру�
         result[subject] = pd.DataFrame(data)
 
     print(f'Обработано предметов: {len(result)}')
-    return result
+
+    return result, exams_dict
 
 

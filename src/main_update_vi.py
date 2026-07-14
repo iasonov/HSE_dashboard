@@ -1,4 +1,0 @@
-from files_pipeline import process_vi_dates_file
-from update_pipeline import update_vi_dates_sheet
-data_vi = process_vi_dates_file()
-update_vi_dates_sheet(data_vi)

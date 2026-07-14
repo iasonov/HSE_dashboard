@@ -1,0 +1,4 @@
+from files_pipeline import process_exams_dates_file
+from update_pipeline import update_exams_dates_sheet
+data_exams_dates, online_exams_dict = process_exams_dates_file()
+update_exams_dates_sheet(data_exams_dates, online_exams_dict)
