@@ -102,7 +102,7 @@ def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, hist
         _write_history_cells(dashboard, history_data)
 
 
-def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_dict: dict[str, str]) -> None:
+def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_dict: dict[str, str], delay_sec: float = 1.0) -> None:
     '''Выгружает таблицу с датами ВИ в Google Sheets "Даты ВИ 2026".
 
     Для каждого предмета (ключа словаря) проверяет наличие вкладки:
@@ -128,10 +128,13 @@ def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_d
         sheet = client.create('Даты ВИ 2026')
         print('Google таблица "Даты ВИ 2026" создана')
         # Удаляем дефолтную вкладку
+        time.sleep(delay_sec)
         default_ws = sheet.get_worksheet(0)
         if default_ws.title == 'Sheet1':
+            time.sleep(delay_sec)
             sheet.del_worksheet(default_ws)
 
+    time.sleep(delay_sec)
     existing_titles = {ws.title for ws in sheet.worksheets()}
 
     for subject, df in exams_data.items():
@@ -141,19 +144,22 @@ def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_d
 
         if title in existing_titles:
             worksheet = sheet.worksheet(title)
+            time.sleep(delay_sec)
             worksheet.clear()
             n_rows = len(values)
             n_cols = len(values[0]) if values else 0
             if n_rows > 0 and n_cols > 0:
+                time.sleep(delay_sec)
                 worksheet.resize(n_rows, n_cols)
+                
             print(f'Обновлена вкладка: {title}')
         else:
             n_rows = max(len(values), 1)
             n_cols = max(len(values[0]), 1) if values else 1
+            time.sleep(delay_sec)
             worksheet = sheet.add_worksheet(title=title, rows=n_rows, cols=n_cols)
-            
             print(f'Создана вкладка: {title}')
-        time.sleep(0.5)
+        time.sleep(delay_sec)
         worksheet.update(values)
         print(f'Данные на вкладку "{title}" загружены')
 

@@ -703,7 +703,7 @@ def process_from_current_files(debug=None):
     return df, df_history
 
 
-def process_exams_dates_file(file_path: str = 'data/2026_07_13_АСАВ_выгрузка дат ВИ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
+def process_exams_dates_file(file_path: str = 'data/2026_07_14_АСАВ_выгрузка дат ВИ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
     '''Обрабатывает файл выгрузки дат ВИ в словарь DataFrames по предметам.
 
     Каждая вкладка (ключ словаря) соответствует одному уникальному "Предмет".
@@ -722,8 +722,12 @@ def process_exams_dates_file(file_path: str = 'data/2026_07_13_АСАВ_выгр
 
     print('Начинаем считывать данные дат ВИ')
     df = pd.read_excel(file_path, usecols='A:S', skiprows=1)
-    df = df.dropna(subset=[col_exams_subject, col_exams_start])
-    df = df[df[col_exams_subject].isin(exams_dict.keys())]
+    col_despatch_id = df.columns[0]                                             # Столбец A — "Идентификатор DespatchID"
+    col_exam_status = df.columns[6]                                             # Столбец G — "Запись на ВИ или Отказ"
+    df = df.dropna(subset=[col_exams_subject, col_exams_start])                 # удаляем строки, где нет предмета или даты начала сдачи
+    df = df[df[col_exams_subject].isin(exams_dict.keys())]                      # выбираем только те записи на ВИ, которые относятся к онлайн-программам
+    df = df[df[col_exam_status] == 'Да'].sort_values(by=col_despatch_id, ascending=False, ignore_index=True) # сортируем по идентификатору DespatchID, чтобы выше были последние записи
+    df = df.drop_duplicates(subset=[col_exams_subject, col_exams_epgu], ignore_index=True)                    # удаляем дубликаты по предмету и коду ЕПГУ, оставляя только последнюю записи
 
 
     print(f'Данные дат ВИ считаны: {len(df)} записей')
