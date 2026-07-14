@@ -721,7 +721,7 @@ def process_exams_dates_file(file_path: str = 'data/2026_07_13_АСАВ_выгр
     exams_dict = pd.read_csv(dict_path, sep=';').set_index(col_exams_subject).to_dict(orient='dict')['Программа']
 
     print('Начинаем считывать данные дат ВИ')
-    df = pd.read_excel(file_path, usecols='B:S', skiprows=1)
+    df = pd.read_excel(file_path, usecols='A:S', skiprows=1)
     df = df.dropna(subset=[col_exams_subject, col_exams_start])
     df = df[df[col_exams_subject].isin(exams_dict.keys())]
 
