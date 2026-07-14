@@ -163,4 +163,47 @@ def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_d
         worksheet.update(values)
         print(f'Данные на вкладку "{title}" загружены')
 
+    # --- Вкладка-сводка со временем обновления и ссылками на все вкладки ---
+    summary_title = 'Сводка'
+    now_str = datetime.now().strftime('%H:%M %d.%m.%Y')
+    spreadsheet_id = sheet.id
+
+    time.sleep(delay_sec)
+    all_worksheets = sheet.worksheets()
+    tab_links: list[tuple[str, str]] = []
+    for ws in all_worksheets:
+        if ws.title == summary_title:
+            continue
+        url = f'https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit#gid={ws.id}'
+        tab_links.append((ws.title, url))
+
+    summary_values: list[list] = [
+        ['Время последнего обновления', now_str],
+        [],
+        ['Вкладка'],
+    ]
+    for tab_name, url in tab_links:
+        summary_values.append([f'=HYPERLINK("{url}", "{tab_name}")'])
+
+    if summary_title in existing_titles:
+        summary_ws = sheet.worksheet(summary_title)
+        time.sleep(delay_sec)
+        summary_ws.clear()
+        n_rows = len(summary_values)
+        n_cols = max(len(row) for row in summary_values) if summary_values else 0
+        if n_rows > 0 and n_cols > 0:
+            time.sleep(delay_sec)
+            summary_ws.resize(n_rows, n_cols)
+        print(f'Обновлена вкладка: {summary_title}')
+    else:
+        n_rows = max(len(summary_values), 1)
+        n_cols = max(len(row) for row in summary_values) if summary_values else 1
+        time.sleep(delay_sec)
+        summary_ws = sheet.add_worksheet(title=summary_title, rows=n_rows, cols=n_cols)
+        print(f'Создана вкладка: {summary_title}')
+
+    time.sleep(delay_sec)
+    summary_ws.update(summary_values)
+    print(f'Данные на вкладку "{summary_title}" загружены')
+
     print('Выгрузка дат ВИ завершена')

@@ -703,7 +703,7 @@ def process_from_current_files(debug=None):
     return df, df_history
 
 
-def process_exams_dates_file(file_path: str = 'data/2026_07_14_АСАВ_выгрузка дат ВИ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
+def process_exams_dates_file(exams_dates_path: str = 'data/ВИ.xlsx', reg_numbers_path: str = 'data/АСАВ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
     '''Обрабатывает файл выгрузки дат ВИ в словарь DataFrames по предметам.
 
     Каждая вкладка (ключ словаря) соответствует одному уникальному "Предмет".
@@ -711,7 +711,9 @@ def process_exams_dates_file(file_path: str = 'data/2026_07_14_АСАВ_выгр
     под каждой колонкой — список "Код в ЕПГУ".
 
     Args:
-        file_path: путь к файлу выгрузки дат ВИ
+        exams_dates_path: путь к файлу выгрузки дат ВИ (выгрузка данных из АСАВ по датам ВИ из ССПВО)
+        reg_numbers_path: путь к файлу с регистрационными номерами (выгрузка абитуриентов из АСАВ)
+        dict_path: путь к файлу с словарем онлайн-программ (конкурс-программа)
 
     Returns:
         Словарь {название_предмета: DataFrame}, где колонки DataFrame — даты начала сдачи,
@@ -720,8 +722,17 @@ def process_exams_dates_file(file_path: str = 'data/2026_07_14_АСАВ_выгр
     print('Начинаем считывать данные по онлайн-программам')
     exams_dict = pd.read_csv(dict_path, sep=';').set_index(col_exams_subject).to_dict(orient='dict')['Программа']
 
+    print('Начинаем считывать данные заявлений из АСАВ')
+
+    reg_numbers = pd.read_excel(reg_numbers_path, usecols='A:B', skiprows=1) #.drop_duplicates()
+    col_asav_id = reg_numbers.columns[0]
+    col_epgu_id = reg_numbers.columns[1]
+    reg_numbers = reg_numbers.set_index(col_epgu_id).to_dict(orient='dict')[col_asav_id]
+
     print('Начинаем считывать данные дат ВИ')
-    df = pd.read_excel(file_path, usecols='A:S', skiprows=1)
+
+
+    df = pd.read_excel(exams_dates_path, usecols='A:S', skiprows=1)
     col_despatch_id = df.columns[0]                                             # Столбец A — "Идентификатор DespatchID"
     col_exam_status = df.columns[6]                                             # Столбец G — "Запись на ВИ или Отказ"
     df = df.dropna(subset=[col_exams_subject, col_exams_start])                 # удаляем строки, где нет предмета или даты начала сдачи
@@ -735,7 +746,7 @@ def process_exams_dates_file(file_path: str = 'data/2026_07_14_АСАВ_выгр
     result = {}
     for subject, group in df.groupby(col_exams_subject):
         grouped = group.groupby(col_exams_start)[col_exams_epgu].apply(
-            lambda x: [int(v) for v in x.dropna().tolist()]
+            lambda x: [reg_numbers[int(v)] for v in x.dropna().tolist()]
         )
         grouped = grouped.sort_index()
 
