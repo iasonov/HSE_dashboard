@@ -41,9 +41,9 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('B55', '2024'),
         ('B57', '2023'),
         ('AM52', str(history_data.loc[2026, 'early_invitations_unique'])),
-        ('K53', str(history_data.loc[2025, 'leads'][0])),
-        ('K55', str(history_data.loc[2024, 'leads'][0])),
-        ('K57', str(history_data.loc[2023, 'leads'][0])),
+        ('K53', str(history_data.loc[2025, 'leads'])),
+        ('K55', str(history_data.loc[2024, 'leads'])),
+        ('K57', str(history_data.loc[2023, 'leads'])),
         ('O53', str(history_data.loc[2025, 'applications'])),
         ('O55', str(history_data.loc[2024, 'applications'])),
         ('O57', str(history_data.loc[2023, 'applications'])),
@@ -58,6 +58,10 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('O54', str(history_data.loc[2025, 'applications_unique'])),
         ('O56', str(history_data.loc[2024, 'applications_unique'])),
         ('O58', str(history_data.loc[2023, 'applications_unique'])),
+        ('P54', str(history_data.loc[2025, 'applications_no_rossokhins_unique'])),
+        ('Q54', str(history_data.loc[2025, 'applications_bachelors_unique'])),
+        ('R54', str(history_data.loc[2025, 'applications_masters_unique'])),
+        ('S54', str(history_data.loc[2025, 'applications_masters_no_rossokhins_unique'])),
     )
     for cell, value in updates:
         dashboard.update_acell(cell, value)
@@ -151,7 +155,7 @@ def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_d
             if n_rows > 0 and n_cols > 0:
                 time.sleep(delay_sec)
                 worksheet.resize(n_rows, n_cols)
-                
+
             print(f'Обновлена вкладка: {title}')
         else:
             n_rows = max(len(values), 1)

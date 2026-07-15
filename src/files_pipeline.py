@@ -16,6 +16,18 @@ def load_dashboard_template(templates_folder: str) -> pd.DataFrame:
     df_dashboard_template = pd.read_excel(templates_folder + template_file)
     return pd.concat([df_online_programs, df_dashboard_template], ignore_index=True, sort=False).fillna(0)
 
+def _count_history_data(df: pd.DataFrame, now: datetime, delta: timedelta, col_count: str, col_id: str = "") -> int:
+    '''Count the number of rows in the dataframe that meet the condition: date (in column col_count) + delta <= now. Also drop duplicates if non empty col_id is provided.'''
+    df_temp = df.copy()
+    df_temp = df_temp[df_temp[col_count] + delta <= now]
+
+    if col_id in df_temp.columns:
+        df_temp = df_temp.drop_duplicates(subset=[col_id])
+    elif col_id != "":
+        print(f'Column {col_id} not found in dataframe in _count_history_data')
+        raise ValueError(f'Column {col_id} not found in dataframe')
+
+    return df_temp[col_count].count()
 
 def process_history_files(templates_folder: str = 'templates/'):
 
@@ -97,6 +109,11 @@ def process_history_files(templates_folder: str = 'templates/'):
         asav_2025[applications_dates] = pd.to_datetime(asav_2025[applications_dates], format='%Y-%m-%d 00:00:00') # CHECK
         asav_2025[contracts_dates] = pd.to_datetime(asav_2025[contracts_dates], errors='coerce', format='%d.%m.%Y')
 
+        asav_2025 = asav_2025[~((asav_2025[master_col_campus].str.contains('НИУ ВШЭ - Санкт-Петербург')) & (asav_2025[master_col_programs] == 'Финансы')) ]
+        asav_2025 = asav_2025[~((asav_2025[master_col_campus].str.contains('НИУ ВШЭ - Нижний Новгород')) & (asav_2025[master_col_programs] == 'Финансы')) ]
+        # asav_2025[master_col_program_specialization] = asav_2025[master_col_program_specialization].fillna('')
+        # asav_2025 = asav_2025[~asav_2025[master_col_program_specialization].str.contains('офлайн')]
+
         print('Данные АСАВ 2025 года считаны')
 
     except:
@@ -117,33 +134,44 @@ def process_history_files(templates_folder: str = 'templates/'):
     delta_now_2024 = timedelta(days=365+365)
     delta_now_2025 = timedelta(days=365)
 
-    asav_2023_no_duplicates = asav_2023.drop_duplicates(subset=[col_id_asav])
-    asav_2024_no_duplicates = asav_2024.drop_duplicates(subset=[col_id_asav])
-    bachelor_2024_no_duplicates = bachelor_2024.drop_duplicates(subset=[col_id_bachelor])
-    asav_2025_no_duplicates = asav_2025.drop_duplicates(subset=[col_id_asav])
-    bachelor_2025_no_duplicates = bachelor_2025.drop_duplicates(subset=[col_id_bachelor])
-    # ADD 2025
+    asav_2025_no_rossokhins = asav_2025[~asav_2025[master_col_programs].str.startswith('Психоанализ и')]
+
+    applications_2025_masters_unique   = _count_history_data(asav_2025,     now, delta_now_2025, applications_dates, col_id_asav)
+    applications_2025_bachelors_unique = _count_history_data(bachelor_2025, now, delta_now_2025, applications_dates, col_id_bachelor)
+    applications_2025_masters_no_rossokhins_unique = _count_history_data(asav_2025_no_rossokhins, now, delta_now_2025, applications_dates, col_id_asav)
 
     df_pivot = pd.DataFrame.from_dict({'leads' :
-                                {2023: leads_dates_2023.where(leads_dates_2023 + delta_now_2023 <= now).count(),
-                                 2024: leads_dates_2024.where(leads_dates_2024 + delta_now_2024 <= now).count(),
-                                 2025: leads_dates_2025.where(leads_dates_2025 + delta_now_2025 <= now).count()},
+                                {2023: _count_history_data(leads_dates_2023, now, delta_now_2023, 'leads_dates'),
+                                 2024: _count_history_data(leads_dates_2024, now, delta_now_2024, 'leads_dates'),
+                                 2025: _count_history_data(leads_dates_2025, now, delta_now_2025, 'leads_dates')},
                                 'applications' :
-                                {2023: asav_2023[asav_2023[applications_dates] + delta_now_2023 <= now][applications_dates].count(),
-                                 2024: asav_2024[asav_2024[applications_dates] + delta_now_2024 <= now][applications_dates].count() + bachelor_2024[bachelor_2024[applications_dates] + delta_now_2024 <= now][applications_dates].count(),
-                                 2025: asav_2025[asav_2025[applications_dates] + delta_now_2025 <= now][applications_dates].count() + bachelor_2025[bachelor_2025[applications_dates] + delta_now_2025 <= now][applications_dates].count()},
+                                {2023: _count_history_data(asav_2023, now, delta_now_2023, applications_dates),
+                                 2024: _count_history_data(asav_2024, now, delta_now_2024, applications_dates) + _count_history_data(bachelor_2024, now, delta_now_2024, applications_dates),
+                                 2025: _count_history_data(asav_2025, now, delta_now_2025, applications_dates) + _count_history_data(bachelor_2025, now, delta_now_2025, applications_dates)},
 
                                 'contracts' :
-                                {2023: asav_2023[asav_2023[contracts_dates] + delta_now_2023 <= now][contracts_dates].count(),
-                                 2024: asav_2024[asav_2024[contracts_dates] + delta_now_2024 <= now][contracts_dates].count() + bachelor_2024[bachelor_2024[contracts_dates] + delta_now_2024 <= now][contracts_dates].count(),
-                                 2025: asav_2025[asav_2025[contracts_dates] + delta_now_2025 <= now][contracts_dates].count() + bachelor_2025[bachelor_2025[contracts_dates] + delta_now_2025 <= now][contracts_dates].count()},
+                                {2023: _count_history_data(asav_2023, now, delta_now_2023, contracts_dates),
+                                 2024: _count_history_data(asav_2024, now, delta_now_2024, contracts_dates) + _count_history_data(bachelor_2024, now, delta_now_2024, contracts_dates),
+                                 2025: _count_history_data(asav_2025, now, delta_now_2025, contracts_dates) + _count_history_data(bachelor_2025, now, delta_now_2025, contracts_dates)},
 
                                 'applications_unique' :
-                                {2023: asav_2023_no_duplicates[asav_2023_no_duplicates[applications_dates] + delta_now_2023 <= now][applications_dates].count(),
-                                 2024: asav_2024_no_duplicates[asav_2024_no_duplicates[applications_dates] + delta_now_2024 <= now][applications_dates].count() + bachelor_2024_no_duplicates[bachelor_2024_no_duplicates[applications_dates] + delta_now_2024 <= now][applications_dates].count(),
-                                 2025: asav_2025_no_duplicates[asav_2025_no_duplicates[applications_dates] + delta_now_2025 <= now][applications_dates].count() + bachelor_2025_no_duplicates[bachelor_2025_no_duplicates[applications_dates] + delta_now_2025 <= now][applications_dates].count()}
+                                {2023: _count_history_data(asav_2023, now, delta_now_2023, applications_dates, col_id_asav),
+                                 2024: _count_history_data(asav_2024, now, delta_now_2024, applications_dates, col_id_asav) + _count_history_data(bachelor_2024, now, delta_now_2024, applications_dates, col_id_bachelor),
+                                 2025: applications_2025_masters_unique + applications_2025_bachelors_unique},
 
+                                'applications_masters_unique' :
+                                {2025: applications_2025_masters_unique},
+
+                                'applications_bachelors_unique' :
+                                {2025: applications_2025_bachelors_unique},
+
+                                'applications_no_rossokhins_unique' :
+                                {2025: applications_2025_masters_no_rossokhins_unique + applications_2025_bachelors_unique},
+
+                                'applications_masters_no_rossokhins_unique' :
+                                {2025: applications_2025_masters_no_rossokhins_unique},
                                 })
+
     df_leads_after_april_prev = leads_dates_2025_by_program[leads_dates_2025_by_program[leads_dates] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count()
     df_leads_all_prev         = df_leads_after_april_prev.add(leads_dates_2025_before_april_by_program[leads_dates_2025_before_april_by_program[leads_dates] + delta_now_2025 <= now].groupby(col_programs_names)[col_programs_names].count(), fill_value=0)
 
