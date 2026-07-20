@@ -730,6 +730,11 @@ def process_from_current_files(debug=None):
 
     return df, df_history
 
+def _get_reg_number(reg_numbers: dict[int, int], epgu_id: int) -> int:
+    asav_id = reg_numbers.get(int(epgu_id), -1)
+    if asav_id == -1:
+        print(f'Не найден регистрационный номер для ЕПГУ ID: {epgu_id}')
+    return asav_id
 
 def process_exams_dates_file(exams_dates_path: str = 'data/ВИ.xlsx', reg_numbers_path: str = 'data/АСАВ.xlsx', dict_path: str = 'templates/entrance_exams_dict.csv') -> dict[str, pd.DataFrame]:
     '''Обрабатывает файл выгрузки дат ВИ в словарь DataFrames по предметам.
@@ -774,7 +779,7 @@ def process_exams_dates_file(exams_dates_path: str = 'data/ВИ.xlsx', reg_numbe
     result = {}
     for subject, group in df.groupby(col_exams_subject):
         grouped = group.groupby(col_exams_start)[col_exams_epgu].apply(
-            lambda x: [reg_numbers[int(v)] for v in x.dropna().tolist()]
+            lambda x: [_get_reg_number(reg_numbers, v) for v in x.dropna().tolist()]
         )
         grouped = grouped.sort_index()
 
