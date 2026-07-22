@@ -295,18 +295,33 @@ def _apply_history_data_to_dashboard(
     '''Обновляет исторические метрики и подготавливает строку main_studyonline для дашборда.'''
 
     # TODO check
-    history_data.loc[2026, 'applications_unique'] = data.applications[data.applications['ufDealFinancing'] == 808]['contactId'].drop_duplicates().count() # TODO check
     online_masters_ids = dashboard[dashboard['level'] == 'master'][col_program_bitrix]
     online_bachelors_ids = dashboard[dashboard['level'] == 'bachelor'][col_program_bitrix]
+    online_no_rossokhins_ids = dashboard[~dashboard[col_program].str.startswith('Психоанализ и')][col_program_bitrix]
+    online_masters_no_rossokhins_ids = dashboard[(~dashboard[col_program].str.startswith('Психоанализ и'))&(dashboard['level'] == 'master')][col_program_bitrix]
+    budget_ids = data.applications[data.applications['ufDealFinancing'] == 807]['contactId'].unique()
+
+
+    # Filter applications to only include those with financing type 808 (contract) and have no budget applications
+    
+    applications_contracts_no_budget = data.applications[(data.applications['ufDealFinancing'] == 808) & (~data.applications['contactId'].isin(budget_ids))].copy()
+
+    history_data.loc[2026, 'applications_unique_no_budget'] = data.applications[~data.applications['contactId'].isin(budget_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_masters_unique_no_budget'] = applications_contracts_no_budget[applications_contracts_no_budget[col_program_bitrix].isin(online_masters_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_bachelors_unique_no_budget'] = applications_contracts_no_budget[applications_contracts_no_budget[col_program_bitrix].isin(online_bachelors_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_masters_no_rossokhins_unique_no_budget'] = applications_contracts_no_budget[applications_contracts_no_budget[col_program_bitrix].isin(online_masters_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
+    history_data.loc[2026, 'applications_no_rossokhins_unique_no_budget'] = applications_contracts_no_budget[applications_contracts_no_budget[col_program_bitrix].isin(online_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
+
+    # Filter applications to only include those with financing type 808 (contract)
+
+    history_data.loc[2026, 'applications_unique'] = data.applications[data.applications['ufDealFinancing'] == 808]['contactId'].drop_duplicates().count() # TODO check
 
     applications_contract = data.applications[data.applications['ufDealFinancing'] == 808].copy()
     history_data.loc[2026, 'applications_masters_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_masters_ids)]['contactId'].drop_duplicates().count()
     history_data.loc[2026, 'applications_bachelors_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_bachelors_ids)]['contactId'].drop_duplicates().count()
 
-    online_no_rossokhins_ids = dashboard[~dashboard[col_program].str.startswith('Психоанализ и')][col_program_bitrix]
     history_data.loc[2026, 'applications_no_rossokhins_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
 
-    online_masters_no_rossokhins_ids = dashboard[(~dashboard[col_program].str.startswith('Психоанализ и'))&(dashboard['level'] == 'master')][col_program_bitrix]
     history_data.loc[2026, 'applications_masters_no_rossokhins_unique'] = applications_contract[applications_contract[col_program_bitrix].isin(online_masters_no_rossokhins_ids)]['contactId'].drop_duplicates().count()
 
     # list(set(online_masters_ids) - set([219, 220])) # две психологии Россохина

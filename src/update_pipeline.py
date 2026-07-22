@@ -35,7 +35,7 @@ def _read_previous_delta_values(dashboard: gspread.Worksheet, prev_file: Path) -
         return prev_leads, prev_applications
 
 
-def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFrame) -> None:
+def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFrame, delay_sec: float = 1.0) -> None:
     updates: tuple[tuple[str, str], ...] = (
         ('B53', '2025'),
         ('B55', '2024'),
@@ -50,6 +50,11 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('S53', str(history_data.loc[2025, 'contracts'])),
         ('S55', str(history_data.loc[2024, 'contracts'])),
         ('S57', str(history_data.loc[2023, 'contracts'])),
+        ('O63', str(history_data.loc[2026, 'applications_unique_no_budget'])),
+        ('P63', str(history_data.loc[2026, 'applications_no_rossokhins_unique_no_budget'])),
+        ('Q63', str(history_data.loc[2026, 'applications_bachelors_unique_no_budget'])),
+        ('R63', str(history_data.loc[2026, 'applications_masters_unique_no_budget'])),
+        ('S63', str(history_data.loc[2026, 'applications_masters_no_rossokhins_unique_no_budget'])),
         ('O52', str(history_data.loc[2026, 'applications_unique'])),
         ('P52', str(history_data.loc[2026, 'applications_no_rossokhins_unique'])),
         ('Q52', str(history_data.loc[2026, 'applications_bachelors_unique'])),
@@ -64,6 +69,7 @@ def _write_history_cells(dashboard: gspread.Worksheet, history_data: pd.DataFram
         ('S54', str(history_data.loc[2025, 'applications_masters_no_rossokhins_unique'])),
     )
     for cell, value in updates:
+        time.sleep(delay_sec)
         dashboard.update_acell(cell, value)
 
 
