@@ -78,8 +78,8 @@ def update_sheet(aggregated_data: pd.DataFrame, update_delta: bool = False, hist
     prev_file = ROOT_DIR / 'templates' / 'prev_data.csv'
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
-    if sys.platform not in {'win32', 'darwin'}:
-        raise ValueError(f'Unsupported platform: {sys.platform}')
+#    if sys.platform not in {'win32', 'darwin'}:
+#        raise ValueError(f'Unsupported platform: {sys.platform}')
 
     creds = ServiceAccountCredentials.from_json_keyfile_name(str(_credentials_path()), scope)
     client = gspread.authorize(creds)
