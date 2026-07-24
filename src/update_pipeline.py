@@ -125,8 +125,8 @@ def update_exams_dates_sheet(exams_data: dict[str, pd.DataFrame], online_exams_d
     print('Начинаем выгрузку дат ВИ в Google Sheets')
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
-    if sys.platform not in {'win32', 'darwin'}:
-        raise ValueError(f'Unsupported platform: {sys.platform}')
+    #if sys.platform not in {'win32', 'darwin'}:
+    #    raise ValueError(f'Unsupported platform: {sys.platform}')
 
     creds = ServiceAccountCredentials.from_json_keyfile_name(str(_credentials_path()), scope)
     client = gspread.authorize(creds)
