@@ -31,8 +31,8 @@ def run_dashboard(count_delta:bool = True, update_dashboard:bool = True, legacy:
 if __name__ == '__main__':
 
     bitrix_mode = True
-    if not bitrix_mode:
-        count_delta = True
+    if not bitrix_mode: # ASAV & AIS PK xlsx
+        count_delta = False
         update_dashboard = False
         legacy = True
         debug = False

@@ -5,7 +5,7 @@ import numpy as np
 from col_names import *
 from time_const import *
 
-from general_pipeline import insert_values, process_by_week
+from general_pipeline import insert_values, process_by_week, num_years, categorize_ages
 
 
 def load_dashboard_template(templates_folder: str) -> pd.DataFrame:
@@ -478,7 +478,7 @@ def process_from_current_files(debug=None):
     # АСАВ
     try:
         print('Начинаем считывать данные от АСАВ')
-        df_master = pd.read_excel(master_file, skiprows=1, usecols='A:AB, CY:DW, DZ') #sheet_name=master_file_sheet_name,
+        df_master = pd.read_excel(master_file, skiprows=1) #sheet_name=master_file_sheet_name, #, usecols='A:AB, CY:DW, DZ'
         df_master = df_master.dropna(how='all', ignore_index=True)
         df_master = df_master.rename(columns={df_master.columns[-2]: applications_dates})
         print('Данные от АСАВ считаны')
@@ -523,7 +523,7 @@ def process_from_current_files(debug=None):
     df_master_dashboard[col_enrollments] = insert_values(df_master_dashboard, master_enrollments, col_program, col_enrollments)
 
     # TODO проверить 20.06
-    if False: #(now >= datetime(year=2026, month=6, day=20)):
+    if (now >= datetime(year=2026, month=6, day=20)):
         master_male = df_master[df_master[col_gender_asav] == 'Муж.'].groupby(master_col_programs)[master_col_programs].count()
         master_male = pd.DataFrame({col_program:master_male.index, 'values':master_male.values})
         df_master_dashboard[col_male] = insert_values(df_master_dashboard, master_male, col_program, col_male)
@@ -777,6 +777,7 @@ def process_exams_dates_file(exams_dates_path: str = 'data/ВИ.xlsx', reg_numbe
     print(f'Данные дат ВИ считаны: {len(df)} записей')
 
     result = {}
+    num_dates = {}
     for subject, group in df.groupby(col_exams_subject):
         grouped = group.groupby(col_exams_start)[col_exams_epgu].apply(
             lambda x: [_get_reg_number(reg_numbers, v) for v in x.dropna().tolist()]
@@ -786,12 +787,14 @@ def process_exams_dates_file(exams_dates_path: str = 'data/ВИ.xlsx', reg_numbe
         max_len = max(len(v) for v in grouped.values) if len(grouped) > 0 else 0
         data = {}
         for date, codes in grouped.items():
+            num_dates[date] = num_dates.get(date, 0) + len(codes)
             padded = codes + [None] * (max_len - len(codes))
             data[date.strftime('%d.%m.%Y %H:%M')] = padded
 
         result[subject] = pd.DataFrame(data)
 
     print(f'Обработано предметов: {len(result)}')
+    print(f'Распределение записей по датам: {num_dates}')
 
     return result, exams_dict
 
