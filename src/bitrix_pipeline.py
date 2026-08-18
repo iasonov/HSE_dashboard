@@ -119,6 +119,13 @@ def _normalize_raw_data(raw_tables: BitrixRawTables) -> BitrixRawTables:
     raw_tables.applications[contracts_dates]    = pd.to_datetime(raw_tables.applications['ufDealContractdate'], errors='raise').dt.tz_localize(None) # TODO check
 
     raw_tables.applications['ufDealFinancing'] = raw_tables.applications['ufDealFinancing'].fillna(807).astype(int)
+    # raw_tables.crm_deals = raw_tables.crm_deals[raw_tables.crm_deals['ufDealFormaObuchebya'] == '51']
+    raw_tables.applications = raw_tables.applications[~((raw_tables.applications['ufDealFormaObuchebya'] != 51)&(raw_tables.applications[col_program_bitrix] == "ПСИХТЕР. Психоанализ и психоаналитическая психотерапия / Москва / 370401 Психология / факультет социальных наук / Магистратура")) ]
+    raw_tables.applications = raw_tables.applications[~((raw_tables.applications['ufDealFormaObuchebya'] != 51)&(raw_tables.applications[col_program_bitrix] == "ППиБИЗКОНС. Психоанализ и психоаналитическое бизнесконсультирование / Москва / 370401 Психология / факультет социальных наук / Магистратура")) ]
+    raw_tables.applications = raw_tables.applications[~((raw_tables.applications['ufDealFormaObuchebya'] != 51)&(raw_tables.applications[col_program_bitrix] == "МЕЖДБИЗ. Международный бизнес / Москва / 380402 Менеджмент / Кафедра менеджмента инноваций / Магистратура")) ]
+
+
+    #raw_tables.applications = raw_tables.applications[(raw_tables.applications['ufDealFormaObuchebya'] == 51)&(~raw_tables.applications[col_program_bitrix].isin(list(bachelor_dict.values())))]
 
     return raw_tables
 

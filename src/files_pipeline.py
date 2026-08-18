@@ -111,8 +111,8 @@ def process_history_files(templates_folder: str = 'templates/'):
 
         asav_2025 = asav_2025[~((asav_2025[master_col_campus].str.contains('НИУ ВШЭ - Санкт-Петербург')) & (asav_2025[master_col_programs] == 'Финансы')) ]
         asav_2025 = asav_2025[~((asav_2025[master_col_campus].str.contains('НИУ ВШЭ - Нижний Новгород')) & (asav_2025[master_col_programs] == 'Финансы')) ]
-        # asav_2025[master_col_program_specialization] = asav_2025[master_col_program_specialization].fillna('')
-        # asav_2025 = asav_2025[~asav_2025[master_col_program_specialization].str.contains('офлайн')]
+        asav_2025[master_col_program_specialization] = asav_2025[master_col_program_specialization].fillna('')
+        asav_2025 = asav_2025[~asav_2025[master_col_program_specialization].str.contains('офлайн')]
 
         print('Данные АСАВ 2025 года считаны')
 
