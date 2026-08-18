@@ -255,3 +255,10 @@ def build_asav_aispk_summary(
     summary = summary.reindex(columns=SUMMARY_COLUMNS)
     summary[SUMMARY_COLUMNS[3:]] = summary[SUMMARY_COLUMNS[3:]].astype("Int64")
     return summary
+
+from pathlib import Path
+programs_file = "templates/programs.xlsx"
+
+summary = build_asav_aispk_summary(*find_asav_aispk_files("data"), programs_file)
+
+summary.to_excel("data/summary.xlsx")
