@@ -17,6 +17,7 @@ from col_names import (
     master_col_payments,
     master_col_program_specialization,
     master_col_programs,
+    col_programs_names,
 )
 
 
@@ -156,12 +157,12 @@ def build_asav_aispk_summary(
     aispk_columns = [
         "Заявление отозвано",
         "Уникальный код поступающего",
-        "Образовательная программа",
+        col_programs_names,
         bachelor_col_payments,
         "Статус",
     ]
     aispk = pd.read_excel(aispk_file, usecols=aispk_columns, dtype=object)
-    source_programs = aispk["Образовательная программа"].fillna("").astype(str)
+    source_programs = aispk[col_programs_names].fillna("").astype(str)
     canonical_programs = source_programs.map(bachelor_dict).fillna(
         source_programs.where(source_programs.isin(bachelor_programs))
     )
