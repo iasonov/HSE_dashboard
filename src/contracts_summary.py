@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime
 
 import pandas as pd
 
@@ -261,5 +262,5 @@ from pathlib import Path
 programs_file = "templates/programs.xlsx"
 
 summary = build_asav_aispk_summary(*find_asav_aispk_files("data"), programs_file)
-
-summary.to_excel("data/summary.xlsx")
+str_datetime = datetime.now().strftime('%Y_%m_%d_%H_%M')
+summary.to_excel(f"data/{str_datetime}_summary.xlsx")
