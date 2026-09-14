@@ -1,3 +1,5 @@
+"""Обновление дат экзаменов на основе данных из АСАВ - выгрузка ВИ и выгрузка АСАВ для сопоставления рег.номеров и номеров ССПВО."""
+
 from files_pipeline import process_exams_dates_file
 from update_pipeline import update_exams_dates_sheet
 data_exams_dates, online_exams_dict = process_exams_dates_file()
